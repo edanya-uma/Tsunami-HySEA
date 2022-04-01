@@ -19,7 +19,7 @@ __device__ double limitador(double p0m, double p0, double p1, double p1p, double
 	else {
 		aux = fabs((c1-c0)/(c1+c0));
 		c1 = 0.5*(c1+c0)*(1.0-aux*aux*aux);
-		vs = c1/c0*(c0>c1) + (c0/c1)*(c1>=c0);
+		vs = (c1/(c0+EPSILON))*(c0>c1) + (c0/(c1+EPSILON))*(c1>=c0);
 		chi = vs*(1.0+vs)/(1.0+vs*vs);
 	}
 
@@ -44,7 +44,7 @@ __device__ double limitador_monotono(double p0m, double p0, double p1, double p1
 	else {
 		aux = fabs((c1-c0)/(c1+c0));
 		c1 = 0.5*(c1+c0)*(1.0-aux*aux*aux);
-		vs = c1/c0*(c0>c1) + (c0/c1)*(c1>=c0);
+		vs = (c1/(c0+EPSILON))*(c0>c1) + (c0/(c1+EPSILON))*(c1>=c0);
 		chi = sg*vs*(1.0+vs)/(1.0+vs*vs);
 	}
 
