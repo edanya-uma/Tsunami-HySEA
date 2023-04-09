@@ -25,7 +25,7 @@ NetCDF
 
 2) Create the project files with CMake:
 
-   ccmake `<src directory>`
+   `ccmake <src directory>`
 
    Set the parameter CUDA_NVCC_FLAGS to "-arch=sm_xx", where xx is the compute capability
    of the graphics card. In this web page, the compute capabilities of all the CUDA GPUs
@@ -35,14 +35,14 @@ NetCDF
 
    For example, if a NVIDIA V100 is used, CUDA_NVCC_FLAGS should be set to "-arch=sm_70".
 
-3) make (TsunamiHySEA should be created).
+3) `make` (TsunamiHySEA should be created).
 
 
 ## Execution
 
 -Example with initialization using Okada parameters:
 
- TsunamiHySEA <path to Mediterranean/mediterranean.txt>
+ `TsunamiHySEA <path to Mediterranean/mediterranean.txt>`
 
  The NetCDF file mediterranean.nc is generated.
 
