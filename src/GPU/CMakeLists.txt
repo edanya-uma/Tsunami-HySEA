@@ -8,5 +8,10 @@ CUDA_ADD_LIBRARY(GPU
 			Reduccion_kernel.cu
 			Volumen_kernel.cu
 			netcdf.cu
-			Matriz.cu)
+			netcdfSeries.cu
+			Matriz.cu
+			Deformacion.cu
+			DC3D.cu
+			prtoxy.cu)
+
 
