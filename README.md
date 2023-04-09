@@ -25,7 +25,7 @@ NetCDF
 
 2) Create the project files with CMake:
 
-   ccmake "<src directory>"
+   ccmake `<src directory>`
 
    Set the parameter CUDA_NVCC_FLAGS to "-arch=sm_xx", where xx is the compute capability
    of the graphics card. In this web page, the compute capabilities of all the CUDA GPUs
