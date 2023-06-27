@@ -58,7 +58,7 @@ The file with the points for the time series is a text file with an integer indi
 
 ## License
 
-The core version of Tsunami-HySEA is distributed under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License (CC BY-NC-ND 4.0)
+The core version of Tsunami-HySEA is distributed under GNU GENERAL PUBLIC LICENSE.
 
 
 ## Links
