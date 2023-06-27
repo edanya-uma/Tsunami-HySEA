@@ -72,6 +72,6 @@ keywords:
   - geophysical flows
   - shallow water
   - inundation maps
-license: CC-BY-NC-ND-4.0
+license: GPLv2
 commit: a491e6d696f2ef27b212165970f15e3f514522d0
 version: 1.1.0
