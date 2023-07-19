@@ -298,10 +298,10 @@ void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat
 	check_err(iret);
 	iret = nc_put_att_text(ncid, NC_GLOBAL, "institution", 20, "University of Malaga");
 	check_err(iret);
-	sprintf(cadena, "");
+	sprintf(cadena, " ");
 	iret = nc_put_att_text(ncid, NC_GLOBAL, "comments", strlen(cadena), cadena);
 	check_err(iret);
-	sprintf(cadena, "");
+	sprintf(cadena, " ");
 	iret = nc_put_att_text(ncid, NC_GLOBAL, "references", strlen(cadena), cadena);
 	check_err(iret);
 
@@ -358,7 +358,7 @@ void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat
 	else if (okada_flag == OKADA_STANDARD) {
 		iret = nc_put_att_text(ncid, NC_GLOBAL, "initialization_mode", 14, "okada_standard");
 		check_err(iret);
-		sprintf(cadena, "lon: %.4f, lat: %.4f, depth: %.2f, length: %.2f, width: %.2f, strike: %.2f, dip: %.2f, rake: %.2f, slip: %.2f",
+		sprintf(cadena, "lon: %.4f, lat: %.4f, depth: %.4f, length: %.4f, width: %.4f, strike: %.4f, dip: %.4f, rake: %.4f, slip: %.4f",
 			LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP);
 		iret = nc_put_att_text(ncid, NC_GLOBAL, "fault", strlen(cadena), cadena);
 		check_err(iret);

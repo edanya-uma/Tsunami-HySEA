@@ -209,10 +209,10 @@ int initTimeSeriesNC(char *nombre_bati, char *prefijo, int num_points, double *l
 	check_err(iret);
 	iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "institution", 20, "University of Malaga");
 	check_err(iret);
-	sprintf(cadena, "");
+	sprintf(cadena, " ");
 	iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "comments", strlen(cadena), cadena);
 	check_err(iret);
-	sprintf(cadena, "");
+	sprintf(cadena, " ");
 	iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "references", strlen(cadena), cadena);
 	check_err(iret);
 

@@ -329,6 +329,7 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, double LON_C, double
 			liberarMemoria(numNiveles, d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, d_datosNivel,
 				d_eta1MaximaNivel, d_deltaTVolumenesNivel, d_acumuladorNivel_1, d_acumuladorNivel_2,
 				1, d_posicionesVolumenesGuardado, d_datosVolumenesGuardado_1, d_datosVolumenesGuardado_2);
+			return 1;
 		}
 	}
 
@@ -418,6 +419,10 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, double LON_C, double
 				etaMinPuntosGuardado[i] = -9999.0f;
 				etaMaxPuntosGuardado[i] = -9999.0f;
 			}
+			else {
+				etaMinPuntosGuardado[i] = 1e30f;
+				etaMaxPuntosGuardado[i] = -1e30f;
+			}
 		}
 	}
 	// FIN NETCDF
@@ -425,6 +430,8 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, double LON_C, double
 	cudaMemset(d_acumuladorNivel_1, 0, tam_datosVolDouble2Nivel);
 	cudaMemset(d_acumuladorNivel_2, 0, tam_datosVolDouble2Nivel);
 
+	sdkCreateTimer(&timer);
+	sdkStartTimer(&timer);
 	deltaTNivel = obtenerDeltaTInicialNivel0(d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, &d_datosNivel,
 					d_deltaTVolumenesNivel, d_acumuladorNivel_1, numVolxNivel0, numVolyNivel0, borde_izq,
 					borde_der, borde_sup, borde_inf, CFL, epsilon_h, blockGridVer1Nivel, blockGridVer2Nivel,
@@ -434,8 +441,6 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, double LON_C, double
 	cudaMemset(d_acumuladorNivel_1, 0, tam_datosVolDouble2Nivel);
 
 	iter = 1;
-	sdkCreateTimer(&timer);
-	sdkStartTimer(&timer);
 	while (tiempoActSubmalla < tiempo_tot) {
 		// INICIO NETCDF
 		if ((tiempoGuardarNetCDF >= 0.0) && (tiempoActSubmalla >= sigTiempoGuardarNetCDF)) {

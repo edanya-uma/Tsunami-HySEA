@@ -324,6 +324,7 @@ int cargarDatosProblema(string fich_ent, string &nombre_bati, string &prefijo, i
 		}
 	}
 
+	*numPuntosGuardar = 0;
 	if (*leer_fichero_puntos == 1) {
 		fich_ptos.open((directorio+fich_puntos).c_str());
 		fich_ptos >> j;
@@ -339,7 +340,6 @@ int cargarDatosProblema(string fich_ent, string &nombre_bati, string &prefijo, i
 			return 1;
 		}
 
-		*numPuntosGuardar = 0;
 		for (i=0; i<j; i++) {
 			fich_ptos >> lon;
 			fich_ptos >> lat;
@@ -404,18 +404,17 @@ int cargarDatosProblema(string fich_ent, string &nombre_bati, string &prefijo, i
 }
 
 void mostrarDatosProblema(int numNiveles, int okada_flag, tipoDatosSubmalla datosNivel, int numVolxNivel0, int numVolyNivel0,
-				double tiempo_tot, double tiempoGuardarNetCDF, double tiempoGuardarSeries, double CFL, double mf0,
-				double vmax, double epsilon_h, double hpos, double cvis, double L, double H, double Q, double T)
+				double tiempo_tot, double tiempoGuardarNetCDF, int leer_fichero_puntos, double tiempoGuardarSeries, double CFL,
+				double mf0, double vmax, double epsilon_h, double hpos, double cvis, double L, double H, double Q, double T)
 {
 	cout << "/**********************************************************************" << endl;
-	cout << " Tsunami-HySEA numerical model open source v1.1                        " << endl;
+	cout << " Tsunami-HySEA numerical model open source v1.1.1                      " << endl;
 	cout << " developed by the EDANYA Research Group, University of Malaga (Spain). " << endl;
 	cout << " https://www.uma.es/edanya                                             " << endl;
 	cout << " https://edanya.uma.es/hysea/                                          " << endl;
 	cout << " Contact and support: hysea@uma.es                                     " << endl;
 	cout << " The core version of Tsunami-HySEA is distributed under                " << endl;
-	cout << " Creative Commons Attribution-NonCommercial-NoDerivatives 4.0          " << endl;
-	cout << " International Public License (CC BY-NC-ND 4.0)                        " << endl;
+	cout << " GNU General Public License, Version 2                                 " << endl;
 	cout << "**********************************************************************/" << endl;
 	cout << endl;
 
@@ -434,7 +433,12 @@ void mostrarDatosProblema(int numNiveles, int okada_flag, tipoDatosSubmalla dato
 	cout << "Stability coefficient: " << 1.0-cvis << endl;
 	cout << "Simulation time: " << tiempo_tot*T << " sec" << endl;
 	cout << "Saving time of NetCDF files: " << tiempoGuardarNetCDF*T << " sec" << endl;
-	cout << "Saving time of time series: " << tiempoGuardarSeries*T << " sec" << endl;
+	if (leer_fichero_puntos) {
+		cout << "Time series: yes (saving time: " << tiempoGuardarSeries*T << " sec)" << endl;
+	}
+	else {
+		cout << "Time series: no" << endl;
+	}
 	cout << "Number of levels: " << numNiveles << endl;
 	cout << "Level 0" << endl;
 	cout << "  Volumes: " << numVolxNivel0 << " x " << numVolyNivel0 << " = " << numVolxNivel0*numVolyNivel0 << endl;
