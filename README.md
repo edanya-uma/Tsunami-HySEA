@@ -1,4 +1,4 @@
-# TsunamiHySEA v.1.1.0
+# TsunamiHySEA 1.1.1
 
 ## Introduction
 
