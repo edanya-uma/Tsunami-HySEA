@@ -1,6 +1,3 @@
-# This CITATION.cff file was generated with cffinit.
-# Visit https://bit.ly/cffinit to generate yours today!
-
 cff-version: 1.2.0
 title: Tsunami-HySEA
 message: >-
@@ -11,42 +8,42 @@ type: software
 authors:
   - given-names: EDANYA Research Group
     email: t_hysea@uma.es
-  - given-names: 'Jorge'
+  - given-names: Jorge
     family-names: Macías Sánchez
     email: jmacias@uma.es
     affiliation: Universidad de Málaga
     orcid: 'https://orcid.org/0000-0002-3010-8050'
-  - given-names: 'Carlos'
+  - given-names: Carlos
     family-names: Sánchez Linares
     email: csl@uma.es
     orcid: 'https://orcid.org/0000-0002-5493-5982'
     affiliation: Universidad de Málaga
-  - given-names: 'Marc'
+  - given-names: Marc
     family-names: de la Asunción
     email: marcah@uma.es
     affiliation: Universidad de Málaga
     orcid: 'https://orcid.org/0000-0003-3130-1335'
-  - given-names: 'Manuel Jesús'
+  - given-names: Manuel Jesús
     family-names: Castro Díaz
     email: mjcastro@uma.es
     orcid: 'https://orcid.org/0000-0003-3164-7715'
     affiliation: Universidad de Málaga
-  - given-names: 'José Manuel'
+  - given-names: José Manuel
     family-names: González Vida
     email: jgv@uma.es
     affiliation: Universidad de Málaga
     orcid: 'https://orcid.org/0000-0003-4996-1972'
-  - given-names: 'Tomás'
+  - given-names: Tomás
     family-names: Morales de Luna
     email: tmorales@uma.es
     affiliation: Universidad de Málaga
     orcid: 'https://orcid.org/0000-0001-7162-9672'
-  - given-names: 'Sergio'
+  - given-names: Sergio
     family-names: Ortega Acosta
     email: sergio.ortega@uma.es
     orcid: 'https://orcid.org/0000-0001-7246-2085'
     affiliation: Universidad de Málaga
-  - given-names: 'Cipriano'
+  - given-names: Cipriano
     family-names: Escalante
     email: escalante@uma.es
     affiliation: Universidad de Málga
@@ -72,6 +69,6 @@ keywords:
   - geophysical flows
   - shallow water
   - inundation maps
-license: 'GPLv2'
-commit: 263b6466ee4f52558e5549a9eccdc39082320d58
+license: GPL-2.0
 version: 1.1.1
+date-released: 2023-07-19
