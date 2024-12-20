@@ -1,7 +1,10 @@
-Mediterranean          # Bathymetry name
+Mediterranean          # Problem name
 Mediterranean.grd      # Bathymetry file name
 1                      # Initialization type (0: From file, 1: Standard Okada)
-22.30 35.70 16.33 100.0 50.0 313.0 35.0 90.0 8.40  # Lon-epicenter Lat-epicenter Depth-hypocenter Fault-length(km) Fault-width(km) Strike Dip Rake Slip(m)
+1                      # Number of faults
+0.0 22.30 35.70 16.33 100.0 50.0 313.0 35.0 90.0 8.40  # Time(s) Lon Lat Depth(km) Length(km) Width(km) Strike Dip Rake Slip(m)
+1                      # Crop deformations (0: No, 1: Relative cropping, 2: Absolute cropping)
+5e-3                   # Relative percentage [0,1]
 mediterranean          # NetCDF file prefix for level 0
 1                      # Number of levels
 1                      # Upper border condition (1: open, -1: wall)
@@ -19,4 +22,4 @@ mediterranean          # NetCDF file prefix for level 0
 100                    # Maximum allowed velocity of water
 100000                 # L (typical length)
 1000                   # H (typical height)
-
+1e-6                   # Threshold for arrival times (m)

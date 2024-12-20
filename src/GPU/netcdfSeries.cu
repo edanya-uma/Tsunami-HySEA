@@ -31,11 +31,36 @@ void check_err(int iret)
 /* Series de tiempos */
 /*********************/
 
-int initTimeSeriesNC(char *nombre_bati, char *prefijo, int num_points, double *lonPuntos, double *latPuntos,
-		double tiempo_tot, double CFL, double epsilon_h, double mf0, double vmax, double hpos, double cvis,
-		double borde_sup, double borde_inf, double borde_izq, double borde_der, double LON_C, double LAT_C,
-		double DEPTH_C, double FAULT_L, double FAULT_W, double STRIKE, double DIP, double RAKE, double SLIP,
-		int okada_flag)
+void escribirDatosCroppingTimeSeriesNC(int ncid_ts, int crop_flag, double crop_value, double H)
+{
+	float val_float;
+	int iret;
+
+	if (crop_flag == CROP_RELATIVE) {
+		iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "crop_deformations", 8, "relative");
+		check_err(iret);
+		val_float = (float) crop_value;
+		iret = nc_put_att_float(ncid_ts, NC_GLOBAL, "crop_percentage_0-1", NC_FLOAT, 1, &val_float);
+		check_err(iret);
+	}
+	else if (crop_flag == CROP_ABSOLUTE) {
+		iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "crop_deformations", 8, "absolute");
+		check_err(iret);
+		val_float = (float) (crop_value*H);
+		iret = nc_put_att_float(ncid_ts, NC_GLOBAL, "crop_threshold", NC_FLOAT, 1, &val_float);
+		check_err(iret);
+	}
+	else {
+		iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "crop_deformations", 2, "no");
+		check_err(iret);
+	}
+}
+
+int initTimeSeriesNC(char *nombre_bati, char *prefijo, int num_points, double *lonPuntos, double *latPuntos, double tiempo_tot,
+		double CFL, double epsilon_h, double mf0, double vmax, double hpos, double cvis, double dif_at, double borde_sup,
+		double borde_inf, double borde_izq, double borde_der, int numFaults, double *defTime, double *LON_C, double *LAT_C,
+		double *DEPTH_C, double *FAULT_L, double *FAULT_W, double *STRIKE, double *DIP, double *RAKE, double *SLIP,
+		int okada_flag, int crop_flag, double crop_value, double H, char *version)
 {
 	char nombre_fich[256];
 	char cadena[256];
@@ -46,9 +71,10 @@ int initTimeSeriesNC(char *nombre_bati, char *prefijo, int num_points, double *l
 	int deflate_level = DEFLATE_LEVEL;
 	double fill_double;
 	float val_float, fill_float;
+	int val_int;
 	struct timeval tv;
 	char fecha_act[24];
-	int iret;
+	int i, iret;
 
 	sprintf(nombre_fich, "%s_ts.nc", prefijo);
 	iret = nc_create(nombre_fich, NC_CLOBBER|NC_NETCDF4, &ncid_ts);
@@ -203,7 +229,7 @@ int initTimeSeriesNC(char *nombre_bati, char *prefijo, int num_points, double *l
 	check_err(iret);
 	iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "title", 40, "Time series output of TsunamiHySEA model");
 	check_err(iret);
-	iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "Tsunami-HySEA_version", 16, "open source v1.1");
+	iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "Tsunami-HySEA_miniapp_version", strlen(version), version);
 	check_err(iret);
 	iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "creator_name", 12, "EDANYA Group");
 	check_err(iret);
@@ -240,23 +266,26 @@ int initTimeSeriesNC(char *nombre_bati, char *prefijo, int num_points, double *l
 	iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "right_border", 4, cadena);
 	check_err(iret);
 
-	val_float = CFL;
+	val_float = (float) CFL;
 	iret = nc_put_att_float(ncid_ts, NC_GLOBAL, "CFL", NC_FLOAT, 1, &val_float);
 	check_err(iret);
-	val_float = epsilon_h;
+	val_float = (float) epsilon_h;
 	iret = nc_put_att_float(ncid_ts, NC_GLOBAL, "epsilon_h", NC_FLOAT, 1, &val_float);
 	check_err(iret);
-	val_float = mf0;
+	val_float = (float) mf0;
 	iret = nc_put_att_float(ncid_ts, NC_GLOBAL, "water_bottom_friction", NC_FLOAT, 1, &val_float);
 	check_err(iret);
-	val_float = vmax;
+	val_float = (float) vmax;
 	iret = nc_put_att_float(ncid_ts, NC_GLOBAL, "max_velocity_water", NC_FLOAT, 1, &val_float);
 	check_err(iret);
-	val_float = hpos;
+	val_float = (float) hpos;
 	iret = nc_put_att_float(ncid_ts, NC_GLOBAL, "threshold_2swaf", NC_FLOAT, 1, &val_float);
 	check_err(iret);
-	val_float = cvis;
+	val_float = (float) cvis;
 	iret = nc_put_att_float(ncid_ts, NC_GLOBAL, "stability_coefficient", NC_FLOAT, 1, &val_float);
+	check_err(iret);
+	val_float = (float) dif_at;
+	iret = nc_put_att_float(ncid_ts, NC_GLOBAL, "threshold_arrival_times", NC_FLOAT, 1, &val_float);
 	check_err(iret);
 
 	if (okada_flag == SEA_SURFACE_FROM_FILE) {
@@ -266,10 +295,17 @@ int initTimeSeriesNC(char *nombre_bati, char *prefijo, int num_points, double *l
 	else if (okada_flag == OKADA_STANDARD) {
 		iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "initialization_mode", 14, "okada_standard");
 		check_err(iret);
-		sprintf(cadena, "lon: %.4f, lat: %.4f, depth: %.2f, length: %.2f, width: %.2f, strike: %.2f, dip: %.2f, rake: %.2f, slip: %.2f",
-			LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP);
-		iret = nc_put_att_text(ncid_ts, NC_GLOBAL, "fault", strlen(cadena), cadena);
+		val_int = numFaults;
+		iret = nc_put_att_int(ncid_ts, NC_GLOBAL, "num_faults", NC_INT, 1, &val_int);
 		check_err(iret);
+		for (i=0; i<numFaults; i++) {
+			sprintf(nombre_fich, "fault_%d", i+1);
+			sprintf(cadena, "time: %.4f, lon: %.4f, lat: %.4f, depth: %.4f, length: %.4f, width: %.4f, strike: %.4f, dip: %.4f, rake: %.4f, slip: %.4f",
+				defTime[i], LON_C[i], LAT_C[i], DEPTH_C[i], FAULT_L[i], FAULT_W[i], STRIKE[i], DIP[i], RAKE[i], SLIP[i]);
+			iret = nc_put_att_text(ncid_ts, NC_GLOBAL, nombre_fich, strlen(cadena), cadena);
+			check_err(iret);
+		}
+		escribirDatosCroppingTimeSeriesNC(ncid_ts, crop_flag, crop_value, H);
 	}
 
 	iret = nc_enddef(ncid_ts);

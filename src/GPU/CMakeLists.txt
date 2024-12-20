@@ -7,9 +7,12 @@ CUDA_ADD_LIBRARY(GPU
 			Arista_kernel.cu
 			Reduccion_kernel.cu
 			Volumen_kernel.cu
+			Timestep.cu
 			netcdf.cu
 			netcdfSeries.cu
 			Matriz.cu
+			Metrics.cu
+			netcdf_kernel.cu
 			Deformacion.cu
 			DC3D.cu
 			prtoxy.cu)

@@ -1,4 +1,4 @@
-# Tsunami-HySEA 1.1.1
+# Tsunami-HySEA 1.2
 
 ## Introduction
 

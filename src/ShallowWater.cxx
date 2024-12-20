@@ -1,5 +1,5 @@
 /**********************************************************************
- Tsunami-HySEA numerical model open source v1.1.1
+ Tsunami-HySEA numerical model open source v1.2.0
  developed by the EDANYA Research Group, University of Malaga (Spain).
  https://www.uma.es/edanya
  https://edanya.uma.es/hysea/
@@ -17,14 +17,15 @@
 /*****************/
 
 extern "C" int comprobarSoporteCUDA();
-extern "C" int shallowWater(int numNiveles, int okada_flag, double LON_C, double LAT_C, double DEPTH_C, double FAULT_L,
-			double FAULT_W, double STRIKE, double DIP, double RAKE, double SLIP, double2 *datosVolumenesNivel_1,
-			double2 *datosVolumenesNivel_2, tipoDatosSubmalla datosNivel, int leer_fichero_puntos, int numPuntosGuardar,
-			int *posicionesVolumenesGuardado, double *lonPuntos, double *latPuntos, int numVolxNivel0, int numVolyNivel0,
-			int64_t numVolumenesNivel, double Hmin, char *nombre_bati, string prefijo, double borde_sup, double borde_inf,
-			double borde_izq, double borde_der, int tam_spongeSup, int tam_spongeInf, int tam_spongeIzq, int tam_spongeDer,
-			double tiempo_tot, double tiempoGuardarNetCDF, double tiempoGuardarSeries, double CFL, double mf0, double vmax,
-			double epsilon_h, double hpos, double cvis, double L, double H, double Q, double T, double *tiempo);
+extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int crop_flag, double crop_value, double *LON_C,
+			double *LAT_C, double *DEPTH_C, double *FAULT_L, double *FAULT_W, double *STRIKE, double *DIP, double *RAKE,
+			double *SLIP, double *defTime, double2 *datosVolumenesNivel_1, double2 *datosVolumenesNivel_2, tipoDatosSubmalla datosNivel,
+			int leer_fichero_puntos, int numPuntosGuardar, int *posicionesVolumenesGuardado, double *lonPuntos, double *latPuntos,
+			int numVolxNivel0, int numVolyNivel0, int64_t numVolumenesNivel, double Hmin, char *nombre_bati, string prefijo,
+			double borde_sup, double borde_inf, double borde_izq, double borde_der, int tam_spongeSup, int tam_spongeInf,
+			int tam_spongeIzq, int tam_spongeDer, double tiempo_tot, double tiempoGuardarNetCDF, double tiempoGuardarSeries,
+			double CFL, double mf0, double vmax, double epsilon_h, double hpos, double cvis, double dif_at, double L, double H,
+			double Q, double T, char *version, double *tiempo);
 
 /*********************/
 /* Fin funciones GPU */
@@ -32,6 +33,7 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, double LON_C, double
 
 int main(int argc, char *argv[])
 {
+	string version = "1.2.0";
 	double2 *datosVolumenesNivel_1;
 	double2 *datosVolumenesNivel_2;
 	tipoDatosSubmalla datosNivel;
@@ -47,7 +49,7 @@ int main(int argc, char *argv[])
 	int tam_spongeSup, tam_spongeInf, tam_spongeIzq, tam_spongeDer;
 	double tiempo_tot;
 	double tiempoGuardarNetCDF, tiempoGuardarSeries;
-	double Hmin, epsilon_h;
+	double Hmin, epsilon_h, dif_at;
 	double mf0, vmax;
 	double CFL, hpos, cvis;
 	double L, H, Q, T;
@@ -56,12 +58,15 @@ int main(int argc, char *argv[])
 	string prefijo;
 	int numNiveles;
 	double tiempo_gpu;
-	int okada_flag;
-	double LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP;
+	int okada_flag, numFaults;
+	int crop_flag;
+	double crop_value;
+	double LON_C[MAX_FAULTS], LAT_C[MAX_FAULTS], DEPTH_C[MAX_FAULTS], FAULT_L[MAX_FAULTS], FAULT_W[MAX_FAULTS];
+	double STRIKE[MAX_FAULTS], DIP[MAX_FAULTS], RAKE[MAX_FAULTS], SLIP[MAX_FAULTS], defTime[MAX_FAULTS];
 
 	if (argc < 2) {
 		cerr << "/**********************************************************************" << endl;
-		cerr << " Tsunami-HySEA numerical model open source v1.1.1                      " << endl;
+		cerr << " Tsunami-HySEA numerical model open source v" << version << endl;
 		cerr << " developed by the EDANYA Research Group, University of Malaga (Spain). " << endl;
 		cerr << " https://www.uma.es/edanya                                             " << endl;
 		cerr << " https://edanya.uma.es/hysea/                                          " << endl;
@@ -71,7 +76,7 @@ int main(int argc, char *argv[])
 		cerr << "**********************************************************************/" << endl;
 		cerr << endl;
 		cerr << "Use: " << endl;
-		cerr << argv[0] << " dataFile" << endl << endl; 
+		cerr << argv[0] << " dataFile" << endl << endl;
 		cerr << "dataFile format:" << endl;
 		cerr << "  Bathymetry name" << endl;
 		cerr << "  Bathymetry file" << endl;
@@ -80,8 +85,14 @@ int main(int argc, char *argv[])
 		cerr << "  If " << SEA_SURFACE_FROM_FILE << ":" << endl;
 		cerr << "    Initial state file" << endl;
 		cerr << "  Else if " << OKADA_STANDARD << ":" << endl;
-		cerr << "    A line containing:"<< endl;
-		cerr << "      Lon_epicenter Lat_epicenter Depth_hypocenter(km) Fault_length(km) Fault_width(km) Strike Dip Rake Slip(m)" << endl;
+		cerr << "    Number of faults (>= 1)" << endl;
+		cerr << "    For every fault, a line containing:" << endl;
+		cerr << "      Time(sec) Lon_epicenter Lat_epicenter Depth_hypocenter(km) Fault_length(km) Fault_width(km) Strike Dip Rake Slip(m)" << endl;
+		cerr << "    Crop deformations (" << NO_CROP << ": No, " << CROP_RELATIVE << ": Relative cropping, " << CROP_ABSOLUTE << ": Absolute cropping)" << endl;
+		cerr << "    If " << CROP_RELATIVE << ":" << endl;
+		cerr << "      Percentage [0,1]" << endl;
+		cerr << "    Else if " << CROP_ABSOLUTE << ":" << endl;
+		cerr << "      Threshold value (m)" << endl;
 		cerr << "  NetCDF file prefix" << endl;
 		cerr << "  Number of levels (should be 1)" << endl;
 		cerr << "  Upper border condition (1: open, -1: wall)" << endl;
@@ -102,6 +113,7 @@ int main(int argc, char *argv[])
 		cerr << "  Maximum allowed velocity of water" << endl;
 		cerr << "  L (typical length)" << endl;
 		cerr << "  H (typical depth)" << endl;
+		cerr << "  Threshold for arrival times (m) (epsilon h if not specified)" << endl;
 		return EXIT_FAILURE;
 	}
 
@@ -121,26 +133,28 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	err = cargarDatosProblema(fich_ent, nombre_bati, prefijo, &numNiveles, &okada_flag, &LON_C, &LAT_C, &DEPTH_C,
-			&FAULT_L, &FAULT_W, &STRIKE, &DIP, &RAKE, &SLIP, &datosVolumenesNivel_1, &datosVolumenesNivel_2,
-			&datosNivel, &numVolxNivel0, &numVolyNivel0, &numVolumenesNivel, &leer_fichero_puntos, &numPuntosGuardar,
-			&posicionesVolumenesGuardado, &lonPuntos, &latPuntos, &Hmin, &borde_sup, &borde_inf, &borde_izq, &borde_der,
-			&tam_spongeSup, &tam_spongeInf, &tam_spongeIzq, &tam_spongeDer, &tiempo_tot, &tiempoGuardarNetCDF,
-			&tiempoGuardarSeries, &CFL, &mf0, &vmax, &epsilon_h, &hpos, &cvis, &L, &H, &Q, &T);
+	err = cargarDatosProblema(fich_ent, nombre_bati, prefijo, &numNiveles, &okada_flag, &numFaults, &crop_flag,
+			&crop_value, LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP, defTime, &datosVolumenesNivel_1,
+			&datosVolumenesNivel_2, &datosNivel, &numVolxNivel0, &numVolyNivel0, &numVolumenesNivel, &leer_fichero_puntos,
+			&numPuntosGuardar, &posicionesVolumenesGuardado, &lonPuntos, &latPuntos, &Hmin, &borde_sup, &borde_inf,
+			&borde_izq, &borde_der, &tam_spongeSup, &tam_spongeInf, &tam_spongeIzq, &tam_spongeDer, &tiempo_tot,
+			&tiempoGuardarNetCDF, &tiempoGuardarSeries, &CFL, &mf0, &vmax, &epsilon_h, &hpos, &cvis, &dif_at,
+			&L, &H, &Q, &T);
 	if (err > 0)
 		return EXIT_FAILURE;
 
-	mostrarDatosProblema(numNiveles, okada_flag, datosNivel, numVolxNivel0, numVolyNivel0, tiempo_tot,
-		tiempoGuardarNetCDF, leer_fichero_puntos, tiempoGuardarSeries, CFL, mf0, vmax, epsilon_h,
-		hpos, cvis, L, H, Q, T);
+	mostrarDatosProblema(version, numNiveles, okada_flag, numFaults, crop_flag, crop_value, datosNivel, numVolxNivel0,
+		numVolyNivel0, tiempo_tot, tiempoGuardarNetCDF, leer_fichero_puntos, tiempoGuardarSeries, CFL, mf0, vmax,
+		epsilon_h, hpos, cvis, dif_at, L, H, Q, T);
 
 	cout << scientific;
-	err = shallowWater(numNiveles, okada_flag, LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP,
-			datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel, leer_fichero_puntos, numPuntosGuardar,
-			posicionesVolumenesGuardado, lonPuntos, latPuntos, numVolxNivel0, numVolyNivel0, numVolumenesNivel,
-			Hmin, (char *) nombre_bati.c_str(), prefijo, borde_sup, borde_inf, borde_izq, borde_der, tam_spongeSup,
-			tam_spongeInf, tam_spongeIzq, tam_spongeDer, tiempo_tot, tiempoGuardarNetCDF, tiempoGuardarSeries,
-			CFL, mf0, vmax, epsilon_h, hpos, cvis, L, H, Q, T, &tiempo_gpu);
+	err = shallowWater(numNiveles, okada_flag, numFaults, crop_flag, crop_value, LON_C, LAT_C, DEPTH_C, FAULT_L,
+			FAULT_W, STRIKE, DIP, RAKE, SLIP, defTime, datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel,
+			leer_fichero_puntos, numPuntosGuardar, posicionesVolumenesGuardado, lonPuntos, latPuntos, numVolxNivel0,
+			numVolyNivel0, numVolumenesNivel, Hmin, (char *) nombre_bati.c_str(), prefijo, borde_sup, borde_inf, borde_izq,
+			borde_der, tam_spongeSup, tam_spongeInf, tam_spongeIzq, tam_spongeDer, tiempo_tot, tiempoGuardarNetCDF,
+			tiempoGuardarSeries, CFL, mf0, vmax, epsilon_h, hpos, cvis, dif_at, L, H, Q, T, (char *) version.c_str(),
+			&tiempo_gpu);
 	if (err > 0) {
 		if (err == 1)
 			cerr << "Error: Not enough GPU memory" << endl;

@@ -7,6 +7,7 @@
 int ncid;
 int time_id;
 int eta_id, eta_max_id;
+int arr_times_id;
 int ux_id, uy_id;
 int grid_id_okada;
 
@@ -90,12 +91,38 @@ void cerrarGRD()
 	check_err(iret);
 }
 
+void escribirDatosCroppingNC(int ncid, int crop_flag, double crop_value, double H)
+{
+	float val_float;
+	int iret;
+
+	if (crop_flag == CROP_RELATIVE) {
+		iret = nc_put_att_text(ncid, NC_GLOBAL, "crop_deformations", 8, "relative");
+		check_err(iret);
+		val_float = (float) crop_value;
+		iret = nc_put_att_float(ncid, NC_GLOBAL, "crop_percentage_0-1", NC_FLOAT, 1, &val_float);
+		check_err(iret);
+	}
+	else if (crop_flag == CROP_ABSOLUTE) {
+		iret = nc_put_att_text(ncid, NC_GLOBAL, "crop_deformations", 8, "absolute");
+		check_err(iret);
+		val_float = (float) (crop_value*H);
+		iret = nc_put_att_float(ncid, NC_GLOBAL, "crop_threshold", NC_FLOAT, 1, &val_float);
+		check_err(iret);
+	}
+	else {
+		iret = nc_put_att_text(ncid, NC_GLOBAL, "crop_deformations", 2, "no");
+		check_err(iret);
+	}
+}
+
 void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat, char *nombre_bati, int okada_flag,
 			char *prefijo, int *p_ncid, int *p_time_id, int *p_eta_id, int *p_ux_id, int *p_uy_id, int num_volx,
 			int num_voly, double tiempo_tot, double CFL, double epsilon_h, double mf0, double vmax, double hpos,
-			double cvis, double borde_sup, double borde_inf, double borde_izq, double borde_der, double LON_C,
-			double LAT_C, double DEPTH_C, double FAULT_L, double FAULT_W, double STRIKE, double DIP,
-			double RAKE, double SLIP, float *bati)
+			double cvis, double dif_at, double borde_sup, double borde_inf, double borde_izq, double borde_der,
+			int numFaults, double *defTime, double *LON_C, double *LAT_C, double *DEPTH_C, double *FAULT_L,
+			double *FAULT_W, double *STRIKE, double *DIP, double *RAKE, double *SLIP, int crop_flag,
+			double crop_value, double H, float *bati, char *version)
 {
 	char nombre_fich[256];
 	char cadena[256];
@@ -112,7 +139,7 @@ void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat
 	float val_float, fill_float;
 	struct timeval tv;
 	char fecha_act[24];
-	int iret;
+	int i, iret;
 
 	sprintf(nombre_fich, "%s.nc", prefijo);
 	iret = nc_create(nombre_fich, NC_CLOBBER|NC_NETCDF4, p_ncid);
@@ -175,6 +202,8 @@ void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat
 	check_err(iret);
 	iret = nc_def_var(ncid, "max_height", NC_FLOAT, 2, grid_dims, &eta_max_id);
 	check_err(iret);
+	iret = nc_def_var(ncid, "arrival_times", NC_FLOAT, 2, grid_dims, &arr_times_id);
+	check_err(iret);
 	iret = nc_def_var_deflate(ncid, eta_max_id, NC_SHUFFLE, 1, deflate_level);
 	check_err(iret);
 	iret = nc_def_var(ncid, "eta", NC_FLOAT, 3, var_dims, p_eta_id);
@@ -202,7 +231,7 @@ void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat
 	iret = nc_put_att_text(ncid, *p_uy_id, "long_name", 32, "Velocity of water along latitude");
 	check_err(iret);
 
-	fill_float = -9999.0;
+	fill_float = -9999.0f;
 	if (okada_flag == OKADA_STANDARD) {
 		iret = nc_put_att_text(ncid, grid_id, "long_name", 24, "Grid original bathymetry");
 		check_err(iret);
@@ -292,7 +321,7 @@ void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat
 	check_err(iret);
 	iret = nc_put_att_text(ncid, NC_GLOBAL, "title", 25, "TsunamiHySEA model output");
 	check_err(iret);
-	iret = nc_put_att_text(ncid, NC_GLOBAL, "Tsunami-HySEA_version", 16, "open source v1.1");
+	iret = nc_put_att_text(ncid, NC_GLOBAL, "Tsunami-HySEA_miniapp_version", strlen(version), version);
 	check_err(iret);
 	iret = nc_put_att_text(ncid, NC_GLOBAL, "creator_name", 12, "EDANYA Group");
 	check_err(iret);
@@ -312,7 +341,7 @@ void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat
 
 	iret = nc_put_att_text(ncid, NC_GLOBAL, "grid_name", strlen(nombre_bati), nombre_bati);
 	check_err(iret);
-	val_float = tiempo_tot;
+	val_float = (float) tiempo_tot;
 	iret = nc_put_att_float(ncid, NC_GLOBAL, "simulation_time", NC_FLOAT, 1, &val_float);
 	check_err(iret);
 	val_int = 1;
@@ -332,23 +361,26 @@ void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat
 	iret = nc_put_att_text(ncid, NC_GLOBAL, "right_border", 4, cadena);
 	check_err(iret);
 
-	val_float = CFL;
+	val_float = (float) CFL;
 	iret = nc_put_att_float(ncid, NC_GLOBAL, "CFL", NC_FLOAT, 1, &val_float);
 	check_err(iret);
-	val_float = epsilon_h;
+	val_float = (float) epsilon_h;
 	iret = nc_put_att_float(ncid, NC_GLOBAL, "epsilon_h", NC_FLOAT, 1, &val_float);
 	check_err(iret);
-	val_float = mf0;
+	val_float = (float) mf0;
 	iret = nc_put_att_float(ncid, NC_GLOBAL, "water_bottom_friction", NC_FLOAT, 1, &val_float);
 	check_err(iret);
-	val_float = vmax;
+	val_float = (float) vmax;
 	iret = nc_put_att_float(ncid, NC_GLOBAL, "max_velocity_water", NC_FLOAT, 1, &val_float);
 	check_err(iret);
-	val_float = hpos;
+	val_float = (float) hpos;
 	iret = nc_put_att_float(ncid, NC_GLOBAL, "threshold_2swaf", NC_FLOAT, 1, &val_float);
 	check_err(iret);
-	val_float = cvis;
+	val_float = (float) cvis;
 	iret = nc_put_att_float(ncid, NC_GLOBAL, "stability_coefficient", NC_FLOAT, 1, &val_float);
+	check_err(iret);
+	val_float = (float) dif_at;
+	iret = nc_put_att_float(ncid, NC_GLOBAL, "threshold_arrival_times", NC_FLOAT, 1, &val_float);
 	check_err(iret);
 
 	if (okada_flag == SEA_SURFACE_FROM_FILE) {
@@ -358,10 +390,17 @@ void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat
 	else if (okada_flag == OKADA_STANDARD) {
 		iret = nc_put_att_text(ncid, NC_GLOBAL, "initialization_mode", 14, "okada_standard");
 		check_err(iret);
-		sprintf(cadena, "lon: %.4f, lat: %.4f, depth: %.4f, length: %.4f, width: %.4f, strike: %.4f, dip: %.4f, rake: %.4f, slip: %.4f",
-			LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP);
-		iret = nc_put_att_text(ncid, NC_GLOBAL, "fault", strlen(cadena), cadena);
+		val_int = numFaults;
+		iret = nc_put_att_int(ncid, NC_GLOBAL, "num_faults", NC_INT, 1, &val_int);
 		check_err(iret);
+		for (i=0; i<numFaults; i++) {
+			sprintf(nombre_fich, "fault_%d", i+1);
+			sprintf(cadena, "time: %.4f, lon: %.4f, lat: %.4f, depth: %.4f, length: %.4f, width: %.4f, strike: %.4f, dip: %.4f, rake: %.4f, slip: %.4f",
+				defTime[i], LON_C[i], LAT_C[i], DEPTH_C[i], FAULT_L[i], FAULT_W[i], STRIKE[i], DIP[i], RAKE[i], SLIP[i]);
+			iret = nc_put_att_text(ncid, NC_GLOBAL, nombre_fich, strlen(cadena), cadena);
+			check_err(iret);
+		}
+		escribirDatosCroppingNC(ncid, crop_flag, crop_value, H);
 	}
 
 	iret = nc_enddef(ncid);
@@ -381,10 +420,11 @@ void crearFicheroNC(double *lon_grid, double *lat_grid, double *lon, double *lat
 }
 
 int crearFicherosNC(char *nombre_bati, int okada_flag, char *prefijo, int num_volx, int num_voly, double *lon_grid,
-			double *lat_grid, double tiempo_tot, double CFL, double epsilon_h, double mf0, double vmax,
-			double hpos, double cvis, double borde_sup, double borde_inf, double borde_izq, double borde_der,
-			double LON_C, double LAT_C, double DEPTH_C, double FAULT_L, double FAULT_W, double STRIKE,
-			double DIP, double RAKE, double SLIP, float *bati)
+			double *lat_grid, double tiempo_tot, double CFL, double epsilon_h, double mf0, double vmax, double hpos,
+			double cvis, double dif_at, double borde_sup, double borde_inf, double borde_izq, double borde_der,
+			int numFaults, double *defTime, double *LON_C, double *LAT_C, double *DEPTH_C, double *FAULT_L,
+			double *FAULT_W, double *STRIKE, double *DIP, double *RAKE, double *SLIP, int crop_flag,
+			double crop_value, double H, float *bati, char *version)
 {
 	double *lon, *lat;
 	int i;
@@ -402,9 +442,10 @@ int crearFicherosNC(char *nombre_bati, int okada_flag, char *prefijo, int num_vo
 	for (i=0; i<num_voly; i++)
 		lat[i] = lat_grid[i];
 
-	crearFicheroNC(lon_grid, lat_grid, lon, lat, nombre_bati, okada_flag, prefijo, &ncid, &time_id, &eta_id,
-		&ux_id, &uy_id, num_volx, num_voly, tiempo_tot, CFL, epsilon_h, mf0, vmax, hpos, cvis, borde_sup,
-		borde_inf, borde_izq, borde_der, LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP, bati);
+	crearFicheroNC(lon_grid, lat_grid, lon, lat, nombre_bati, okada_flag, prefijo, &ncid, &time_id, &eta_id, &ux_id, &uy_id,
+		num_volx, num_voly, tiempo_tot, CFL, epsilon_h, mf0, vmax, hpos, cvis, dif_at, borde_sup, borde_inf, borde_izq,
+		borde_der, numFaults, defTime, LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP, crop_flag,
+		crop_value, H, bati, version);
 
 	free(lon);
 	free(lat);
@@ -470,12 +511,26 @@ void guardarBatimetriaModificadaNC(float *vec)
 	check_err(iret);
 }
 
-void cerrarFicheroNC(float *eta_max)
+void guardarEta1MaximaNC(float *vec)
 {
 	int iret;
 
-	iret = nc_put_var_float(ncid, eta_max_id, eta_max);
+	iret = nc_put_var_float(ncid, eta_max_id, vec);
 	check_err(iret);
+}
+
+void guardarTiemposLlegadaNC(float *vec)
+{
+	int iret;
+
+	iret = nc_put_var_float(ncid, arr_times_id, vec);
+	check_err(iret);
+}
+
+void cerrarFicheroNC()
+{
+	int iret;
+
 	iret = nc_close(ncid);
 	check_err(iret);
 }

@@ -11,12 +11,16 @@
 
 #define EPSILON        DBL_EPSILON
 #define EARTH_RADIUS   6378136.6
+#define MAX_FAULTS     5000   // Maximum number of Okada faults
 #define SPONGE_SIZE    4      // Size of the sponge layer (>= 0)
 #define SEA_LEVEL      0.0    // Sea level in meters. Used in sponge layer
 #define DEFLATE_LEVEL  5      // Level of compression of the NetCDF files (0-9)
 
 #define SEA_SURFACE_FROM_FILE 0
 #define OKADA_STANDARD        1
+#define NO_CROP               0
+#define CROP_RELATIVE         1
+#define CROP_ABSOLUTE         2
 
 using namespace std;
 
