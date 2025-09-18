@@ -1,4 +1,4 @@
-cff-version: 1.2.0
+cff-version: 1.3.0
 title: Tsunami-HySEA
 message: >-
   Tsunami-HySEA is is a high-performance package developed
@@ -70,5 +70,5 @@ keywords:
   - shallow water
   - inundation maps
 license: GPL-2.0
-version: 1.2
-date-released: 2024-12-20
+version: 1.3
+date-released: 2025-09-18

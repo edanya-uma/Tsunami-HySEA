@@ -1,7 +1,6 @@
-#ifndef _VOLUMEN_KERNEL_H_
-#define _VOLUMEN_KERNEL_H_
+#ifndef VOLUMEN_KERNEL_H
+#define VOLUMEN_KERNEL_H
 
-#include <stdio.h>
 #include "Constantes.hxx"
 
 __device__ void spongeLayerPaso1(double *h, double dist, double ls, double h0)
@@ -94,10 +93,10 @@ __global__ void obtenerDeltaTVolumenesGPU(double2 *d_datosVolumenesNivel0_3, dou
 	}
 }
 
-__global__ void obtenerEstadosPaso1Nivel0GPU(double2 *d_datosVolumenes_1, double2 *d_datosVolumenes_2,
-				double2 *d_datosVolumenes_3, double *d_anchoVolumenes, double *d_altoVolumenes,
-				double2 *d_acumulador_1, int num_volx, int num_voly, double delta_T, double Hmin,
-				int tam_spongeSup, int tam_spongeInf, int tam_spongeIzq, int tam_spongeDer, double sea_level)
+__global__ void obtenerEstadosPaso1Nivel0GPU(double2 *d_datosVolumenes_1, double2 *d_datosVolumenes_3,
+				double *d_anchoVolumenes, double *d_altoVolumenes, double2 *d_acumulador_1, int num_volx,
+				int num_voly, double delta_T, double Hmin, int tam_spongeSup, int tam_spongeInf,
+				int tam_spongeIzq, int tam_spongeDer, double sea_level)
 {
 	double2 W1, acum1;
 	double val, area;

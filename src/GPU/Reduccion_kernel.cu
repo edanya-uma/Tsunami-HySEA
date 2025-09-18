@@ -1,5 +1,5 @@
-#ifndef _REDUCCION_KERNEL_H_
-#define _REDUCCION_KERNEL_H_
+#ifndef REDUCCION_KERNEL_H
+#define REDUCCION_KERNEL_H
 
 #include "sharedmem.cuh"
 
@@ -28,14 +28,14 @@ __global__ void reduce6_min(T *g_idata, T *g_odata, unsigned int n)
 	if (i + blockSize >= n)
 		thMin = g_idata[i];
 	else
-		thMin = fmin(g_idata[i], g_idata[i + blockSize]);
+		thMin = min(g_idata[i], g_idata[i + blockSize]);
 	i += gridSize;
 	while (i < n) {
 		if (i + blockSize >= n)
 			val = g_idata[i];
 		else
-			val = fmin(g_idata[i], g_idata[i + blockSize]);
-		thMin = fmin(thMin, val);
+			val = min(g_idata[i], g_idata[i + blockSize]);
+		thMin = min(thMin, val);
 		i += gridSize;
 	}
 	sdata[tid] = thMin;
@@ -44,15 +44,15 @@ __global__ void reduce6_min(T *g_idata, T *g_odata, unsigned int n)
 
     // do reduction in shared mem
     if (blockSize >= 512) {
-		if (tid < 256) { sdata[tid] = thMin = fmin(sdata[tid], sdata[tid + 256]); }
+		if (tid < 256) { sdata[tid] = thMin = min(sdata[tid], sdata[tid + 256]); }
 		__syncthreads();
 	}
     if (blockSize >= 256) {
-		if (tid < 128) { sdata[tid] = thMin = fmin(sdata[tid], sdata[tid + 128]); }
+		if (tid < 128) { sdata[tid] = thMin = min(sdata[tid], sdata[tid + 128]); }
 		__syncthreads();
 	}
     if (blockSize >= 128) {
-		if (tid <  64) { sdata[tid] = thMin = fmin(sdata[tid], sdata[tid +  64]); }
+		if (tid <  64) { sdata[tid] = thMin = min(sdata[tid], sdata[tid +  64]); }
 		__syncthreads();
 	}
 
@@ -61,22 +61,22 @@ __global__ void reduce6_min(T *g_idata, T *g_odata, unsigned int n)
 		int warpSize = 32;
 
 		// Fetch final intermediate sum from 2nd warp
-		if (blockSize >=  64) thMin = fmin(thMin, sdata[tid + 32]);
+		if (blockSize >=  64) thMin = min(thMin, sdata[tid + 32]);
 		// Reduce final warp using shuffle
 		for (int offset = warpSize/2; offset > 0; offset /= 2) {
-			thMin = fmin(thMin, __shfl_down(thMin, offset));
+			thMin = min(thMin, __shfl_down(thMin, offset));
 		}
 	}
 #else*/
 	// fully unroll reduction within a single warp
 	if (tid < 32) {
 		volatile T* sdatav = sdata;
-		if (blockSize >=  64) sdatav[tid] = thMin = fmin(thMin, sdatav[tid + 32]);
-		if (blockSize >=  32) sdatav[tid] = thMin = fmin(thMin, sdatav[tid + 16]);
-		if (blockSize >=  16) sdatav[tid] = thMin = fmin(thMin, sdatav[tid +  8]);
-		if (blockSize >=   8) sdatav[tid] = thMin = fmin(thMin, sdatav[tid +  4]);
-		if (blockSize >=   4) sdatav[tid] = thMin = fmin(thMin, sdatav[tid +  2]);
-		if (blockSize >=   2) sdatav[tid] = thMin = fmin(thMin, sdatav[tid +  1]);
+		if (blockSize >=  64) sdatav[tid] = thMin = min(thMin, sdatav[tid + 32]);
+		if (blockSize >=  32) sdatav[tid] = thMin = min(thMin, sdatav[tid + 16]);
+		if (blockSize >=  16) sdatav[tid] = thMin = min(thMin, sdatav[tid +  8]);
+		if (blockSize >=   8) sdatav[tid] = thMin = min(thMin, sdatav[tid +  4]);
+		if (blockSize >=   4) sdatav[tid] = thMin = min(thMin, sdatav[tid +  2]);
+		if (blockSize >=   2) sdatav[tid] = thMin = min(thMin, sdatav[tid +  1]);
 	}
 //#endif
 
@@ -140,84 +140,33 @@ void getNumBlocksAndThreads(int n, int maxBlocks, int maxThreads, int &blocks, i
 template <class T>
 T obtenerMinimoReduccion(T *d_data, int size)
 {
-	int maxBlocks = 64, maxThreads = 128;
+	int maxBlocks = 128, maxThreads = 256;
 	int numBlocks, numThreads;
-	int i;
-	T h_data[1024];
+	T h_data[16];
 	T minimo;
 
-	if (size > 1024) {
+	if (size > 1) {
 		// Ejecutamos el kernel
 		getNumBlocksAndThreads(size, maxBlocks, maxThreads, numBlocks, numThreads);
 		reduce_min<T>(numBlocks, numThreads, d_data, d_data, size);
 
 		// Obtenemos el mínimo de los resultados parciales de los bloques en GPU
-		// hasta que el número de elementos sea menor o igual que 1024
+		// hasta que el número de elementos sea 1
 		int s = numBlocks;
-		while (s > 1024) {
+		while (s > 1) {
 			getNumBlocksAndThreads(s, maxBlocks, maxThreads, numBlocks, numThreads);
 			reduce_min<T>(numBlocks, numThreads, d_data, d_data, s);
 			s = s / (numThreads*2);
 		}
 
-		// Copiamos los elementos que quedan de GPU a CPU y terminamos de
-		// procesarlos en CPU
+		// Copiamos el resultado de la reducción de GPU a CPU
 		cudaMemcpy(h_data, d_data, numBlocks*sizeof(T), cudaMemcpyDeviceToHost);
-		minimo = (T) 1e30;
-		for (i=0; i<numBlocks; i++) {
-			minimo = min(minimo, h_data[i]);
-		}
+		minimo = (T) h_data[0];
 	}
 	else {
-		// Copiamos los elementos de GPU a CPU y los procesamos en CPU
+		// Copiamos el resultado de la reducción de GPU a CPU
 		cudaMemcpy(h_data, d_data, size*sizeof(T), cudaMemcpyDeviceToHost);
-		minimo = (T) 1e30;
-		for (i=0; i<size; i++) {
-			minimo = min(minimo, h_data[i]);
-		}
-	}
-
-	return minimo;
-}
-
-template <class T>
-T obtenerMinimoReduccionNoMod(T *d_idata, T *d_odata, int size)
-{
-	int maxBlocks = 64, maxThreads = 128;
-	int numBlocks, numThreads;
-	int i;
-	T h_data[1024];
-	T minimo;
-
-	if (size > 1024) {
-		// Ejecutamos el kernel
-		getNumBlocksAndThreads(size, maxBlocks, maxThreads, numBlocks, numThreads);
-		reduce_min<T>(numBlocks, numThreads, d_idata, d_odata, size);
-
-		// Obtenemos el mínimo de los resultados parciales de los bloques en GPU
-		// hasta que el número de elementos sea menor o igual que 1024
-		int s = numBlocks;
-		while (s > 1024) {
-			getNumBlocksAndThreads(s, maxBlocks, maxThreads, numBlocks, numThreads);
-			reduce_min<T>(numBlocks, numThreads, d_idata, d_odata, s);
-			s = s / (numThreads*2);
-		}
-
-		// Copiamos los elementos que quedan de GPU a CPU y terminamos de
-		// procesarlos en CPU
-		cudaMemcpy(h_data, d_odata, numBlocks*sizeof(T), cudaMemcpyDeviceToHost);
-		minimo = (T) 1e30;
-		for (i=0; i<numBlocks; i++) {
-			minimo = min(minimo, h_data[i]);
-		}
-	}
-	else {
-		// Copiamos los elementos de GPU a CPU y los procesamos en CPU
-		cudaMemcpy(h_data, d_odata, size*sizeof(T), cudaMemcpyDeviceToHost);
-		minimo = (T) 1e30;
-		for (i=0; i<size; i++) {
-			minimo = min(minimo, h_data[i]);
-		}
+		minimo = (T) h_data[0];
 	}
 
 	return minimo;

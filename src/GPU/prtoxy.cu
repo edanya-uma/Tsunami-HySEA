@@ -1,6 +1,8 @@
 #ifndef PRTOXY_H
 #define PRTOXY_H
 
+#include <cmath>
+
 __device__ /* Subroutine */ int prtoxy_(double *alatdg, double *alngdg, 
 	double *alato, double *alngo, double *x, double *y, 
 	int *ind)

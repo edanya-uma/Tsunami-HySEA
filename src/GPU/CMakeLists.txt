@@ -2,19 +2,19 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
 CUDA_INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
 
 CUDA_ADD_LIBRARY(GPU
-			ComprobarSoporteCUDA.cu
+			SoporteCUDA.cu
 			ShallowWater.cu
 			Arista_kernel.cu
 			Reduccion_kernel.cu
 			Volumen_kernel.cu
 			Timestep.cu
-			netcdf.cu
+			netcdfTH.cu
 			netcdfSeries.cu
-			Matriz.cu
 			Metrics.cu
 			netcdf_kernel.cu
 			Deformacion.cu
 			DC3D.cu
 			prtoxy.cu)
 
+TARGET_LINK_LIBRARIES(GPU ${NETCDF_LIBRARIES})
 

@@ -1,4 +1,4 @@
-# Tsunami-HySEA 1.2
+# Tsunami-HySEA 1.3
 
 ## Introduction
 
@@ -36,7 +36,7 @@ NetCDF
 
    https://developer.nvidia.com/cuda-gpus
 
-   For example, if a NVIDIA V100 is used, CUDA_NVCC_FLAGS should be set to "-arch=sm_70".
+   For example, if a NVIDIA A100 is used, CUDA_NVCC_FLAGS should be set to "-arch=sm_80".
 
 3) `make` (TsunamiHySEA should be created).
 

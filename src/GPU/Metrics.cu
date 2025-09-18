@@ -1,7 +1,6 @@
-#ifndef _METRICS_H_
-#define _METRICS_H_
+#ifndef METRICS_H
+#define METRICS_H
 
-#include <stdio.h>
 #include "Constantes.hxx"
 
 __global__ void inicializarEta1MaximaNivel0GPU(double2 *d_datosVolumenes_1, double *d_eta1_maxima,

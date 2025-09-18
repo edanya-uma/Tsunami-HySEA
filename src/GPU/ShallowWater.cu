@@ -1,14 +1,17 @@
-#include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
-#include <cstring>
+#include <cstdlib>
+#include <cmath>
+#include <string>
 #include <fstream>
+#include <chrono>
 #include "Timestep.cu"
-#include "helper_timer.h"
 #include "Deformacion.cu"
 #include "Metrics.cu"
 #include "netcdf_kernel.cu"
-#include "netcdf.cu"
+#include "netcdfTH.h"
+
+using namespace netcdfTH;
+using namespace std::chrono;
 
 /*****************/
 /* NetCDF saving */
@@ -59,7 +62,7 @@ void obtenerBatimetriaParaSerieTiempos(double2 *datosVolumenesNivel_1, int numPu
 
 	for (i=0; i<numPuntosGuardar; i++) {
 		if (posicionesVolumenesGuardado[i] != -1)
-			profPuntosGuardado[i] = (float) ((datosVolumenesNivel_1[i].y + Hmin)*H);
+			profPuntosGuardado[i] = static_cast<float>((datosVolumenesNivel_1[i].y + Hmin)*H);
 	}
 }
 
@@ -76,9 +79,9 @@ void guardarSerieTiemposNivel0(double2 *datosVolumenesNivel_1, double2 *datosVol
 	for (i=0; i<numPuntosGuardar; i++) {
 		if (posicionesVolumenesGuardado[i] != -1) {
 			h = datosVolumenesNivel_1[i].x;
-			etaPuntosGuardado[i] = (float) ((h - datosVolumenesNivel_1[i].y - Hmin)*H);
-			uPuntosGuardado[i] = (float) (datosVolumenesNivel_2[i].x*Q/H);
-			vPuntosGuardado[i] = (float) (datosVolumenesNivel_2[i].y*Q/H);
+			etaPuntosGuardado[i] = static_cast<float>((h - datosVolumenesNivel_1[i].y - Hmin)*H);
+			uPuntosGuardado[i] = static_cast<float>(datosVolumenesNivel_2[i].x*Q/H);
+			vPuntosGuardado[i] = static_cast<float>(datosVolumenesNivel_2[i].y*Q/H);
 			etaMinPuntosGuardado[i] = min(etaPuntosGuardado[i], etaMinPuntosGuardado[i]);
 			etaMaxPuntosGuardado[i] = max(etaPuntosGuardado[i], etaMaxPuntosGuardado[i]);
 		}
@@ -180,7 +183,7 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int c
 			double *LAT_C, double *DEPTH_C, double *FAULT_L, double *FAULT_W, double *STRIKE, double *DIP, double *RAKE,
 			double *SLIP, double *defTime, double2 *datosVolumenesNivel_1, double2 *datosVolumenesNivel_2, tipoDatosSubmalla datosNivel,
 			int leer_fichero_puntos, int numPuntosGuardar, int *posicionesVolumenesGuardado, double *lonPuntos, double *latPuntos,
-			int numVolxNivel0, int numVolyNivel0, int64_t numVolumenesNivel, double Hmin, char *nombre_bati, string prefijo,
+			int numVolxNivel0, int numVolyNivel0, int64_t numVolumenesNivel, double Hmin, char *nombre_bati, std::string prefijo,
 			double borde_sup, double borde_inf, double borde_izq, double borde_der, int tam_spongeSup, int tam_spongeInf,
 			int tam_spongeIzq, int tam_spongeDer, double tiempo_tot, double tiempoGuardarNetCDF, double tiempoGuardarSeries,
 			double CFL, double mf0, double vmax, double epsilon_h, double hpos, double cvis, double dif_at, double L, double H,
@@ -213,6 +216,7 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int c
 	double lat_ini = datosNivel.latitud[0];
 	double incx = (datosNivel.longitud[numVolxNivel0-1] - datosNivel.longitud[0])/(numVolxNivel0-1);
 	double incy = (datosNivel.latitud[numVolyNivel0-1] - datosNivel.latitud[0])/(numVolyNivel0-1);
+	bool es_periodica = (((fabs(borde_izq-2.0) < EPSILON) && (fabs(borde_der-2.0) < EPSILON)) ? true : false);
 
 	int *d_posicionesVolumenesGuardado;
 	double2 *d_datosVolumenesGuardado_1, *d_datosVolumenesGuardado_2;
@@ -231,7 +235,7 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int c
 	double tiempoActSubmalla;
 	double sigTiempoGuardarNetCDF = 0.0;
 	double sigTiempoGuardarSeries = 0.0;
-	StopWatchInterface *timer = NULL;
+	high_resolution_clock::time_point tiempo_ini, tiempo_fin;
 	int i, iter;
 
 	cudaSetDevice(0);
@@ -307,20 +311,20 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int c
 	// INICIO NETCDF
 	double mf0_ini = sqrt(mf0*pow(H,4.0/3.0)/(9.81*L));
 	if (tiempoGuardarNetCDF >= 0.0) {
-		vec = (float *) malloc(tam_datosVolFloatNivel);
-		if (vec == NULL) {
+		vec = static_cast<float *>(malloc(tam_datosVolFloatNivel));
+		if (vec == nullptr) {
 			liberarMemoria(numNiveles, d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, d_datosNivel, d_eta1MaximaNivel,
 				d_tiemposLlegadaNivel, d_eta1InicialNivel, d_deltaTVolumenesNivel, d_acumuladorNivel_1, d_acumuladorNivel_2,
 				leer_fichero_puntos, d_posicionesVolumenesGuardado, d_datosVolumenesGuardado_1, d_datosVolumenesGuardado_2, d_vec);
 			return 2;
 		}
-		for (i=0; i<numVolumenesNivel; i++)
-			vec[i] = (float) ((datosVolumenesNivel_1[i].y + Hmin)*H);
-		iter = crearFicherosNC(nombre_bati, okada_flag, (char *) prefijo.c_str(), numVolxNivel0, numVolyNivel0,
-					datosNivel.longitud, datosNivel.latitud, tiempo_tot*T, CFL, epsilon_h*H, mf0_ini, vmax*Q/H,
-					hpos*H, 1.0-cvis, dif_at*H, borde_sup, borde_inf, borde_izq, borde_der, numFaults, defTime,
-					LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP, crop_flag, crop_value,
-					H, vec, version);
+		for (i=0; i<numVolumenesNivel; i++) {
+			vec[i] = static_cast<float>((datosVolumenesNivel_1[i].y + Hmin)*H);
+		}
+		iter = crearFicherosNC(nombre_bati, okada_flag, const_cast<char *>((prefijo+".nc").c_str()), numVolxNivel0, numVolyNivel0,
+					datosNivel.longitud, datosNivel.latitud, tiempo_tot*T, CFL, epsilon_h*H, mf0_ini, vmax*Q/H, hpos*H, 1.0-cvis,
+					dif_at*H, borde_sup, borde_inf, borde_izq, borde_der, es_periodica, numFaults, defTime, LON_C, LAT_C, DEPTH_C,
+					FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP, crop_flag, crop_value, H, vec, version);
 		if (iter == 1) {
 			liberarMemoria(numNiveles, d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, d_datosNivel, d_eta1MaximaNivel,
 				d_tiemposLlegadaNivel, d_eta1InicialNivel, d_deltaTVolumenesNivel, d_acumuladorNivel_1, d_acumuladorNivel_2,
@@ -330,16 +334,16 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int c
 		}
 	}
 	if (leer_fichero_puntos == 1) {
-		etaPuntosGuardado = (float *) malloc(numPuntosGuardar*sizeof(float));
-		uPuntosGuardado = (float *) malloc(numPuntosGuardar*sizeof(float));
-		vPuntosGuardado = (float *) malloc(numPuntosGuardar*sizeof(float));
-		etaMinPuntosGuardado = (float *) malloc(numPuntosGuardar*sizeof(float));
-		etaMaxPuntosGuardado = (float *) malloc(numPuntosGuardar*sizeof(float));
-		if (etaMaxPuntosGuardado == NULL) {
-			if (etaPuntosGuardado != NULL)			free(etaPuntosGuardado);
-			if (uPuntosGuardado != NULL)			free(uPuntosGuardado);
-			if (vPuntosGuardado != NULL)			free(vPuntosGuardado);
-			if (etaMinPuntosGuardado != NULL)		free(etaMinPuntosGuardado);
+		etaPuntosGuardado = static_cast<float *>(malloc(numPuntosGuardar*sizeof(float)));
+		uPuntosGuardado = static_cast<float *>(malloc(numPuntosGuardar*sizeof(float)));
+		vPuntosGuardado = static_cast<float *>(malloc(numPuntosGuardar*sizeof(float)));
+		etaMinPuntosGuardado = static_cast<float *>(malloc(numPuntosGuardar*sizeof(float)));
+		etaMaxPuntosGuardado = static_cast<float *>(malloc(numPuntosGuardar*sizeof(float)));
+		if (etaMaxPuntosGuardado == nullptr) {
+			if (etaPuntosGuardado != nullptr)		free(etaPuntosGuardado);
+			if (uPuntosGuardado != nullptr)			free(uPuntosGuardado);
+			if (vPuntosGuardado != nullptr)			free(vPuntosGuardado);
+			if (etaMinPuntosGuardado != nullptr)	free(etaMinPuntosGuardado);
 			if (tiempoGuardarNetCDF >= 0.0)
 				free(vec);
 			liberarMemoria(numNiveles, d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, d_datosNivel, d_eta1MaximaNivel,
@@ -347,10 +351,10 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int c
 				leer_fichero_puntos, d_posicionesVolumenesGuardado, d_datosVolumenesGuardado_1, d_datosVolumenesGuardado_2, d_vec);
 			return 2;
 		}
-		initTimeSeriesNC(nombre_bati, (char *) prefijo.c_str(), numPuntosGuardar, lonPuntos, latPuntos, tiempo_tot*T,
-			CFL, epsilon_h*H, mf0_ini, vmax*Q/H, hpos*H, 1.0-cvis, dif_at*H, borde_sup, borde_inf, borde_izq, borde_der,
-			numFaults, defTime, LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP, okada_flag, crop_flag,
-			crop_value, H, version);
+		initTimeSeriesNC(nombre_bati, const_cast<char *>((prefijo+"_ts.nc").c_str()), numPuntosGuardar, lonPuntos, latPuntos,
+			tiempo_tot*T, CFL, epsilon_h*H, mf0_ini, vmax*Q/H, hpos*H, 1.0-cvis, dif_at*H, borde_sup, borde_inf, borde_izq,
+			borde_der, es_periodica, numFaults, defTime, LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W, STRIKE, DIP, RAKE, SLIP,
+			okada_flag, crop_flag, crop_value, H, version);
 		for (i=0; i<numPuntosGuardar; i++) {
 			if (posicionesVolumenesGuardado[i] == -1) {
 				etaPuntosGuardado[i] = -9999.0f;
@@ -370,11 +374,10 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int c
 	cudaMemset(d_acumuladorNivel_1, 0, tam_datosVolDouble2Nivel);
 	cudaMemset(d_acumuladorNivel_2, 0, tam_datosVolDouble2Nivel);
 
-	sdkCreateTimer(&timer);
-	sdkStartTimer(&timer);
+	tiempo_ini = high_resolution_clock::now();
 	deltaTNivel = obtenerDeltaTInicialNivel0(d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, &d_datosNivel,
 					d_deltaTVolumenesNivel, d_acumuladorNivel_1, numVolxNivel0, numVolyNivel0, borde_izq,
-					borde_der, borde_sup, borde_inf, CFL, epsilon_h, blockGridVer1Nivel, blockGridVer2Nivel,
+					borde_der, borde_sup, borde_inf, es_periodica, CFL, epsilon_h, blockGridVer1Nivel, blockGridVer2Nivel,
 					blockGridHor1Nivel, blockGridHor2Nivel, threadBlockAri, blockGridEstNivel, threadBlockEst);
 	if (numFaults > 0) {
 		if (defTime[0] < EPSILON) {
@@ -424,10 +427,10 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int c
 
 		deltaTNivel = siguientePasoNivel0(d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, &d_datosNivel, d_acumuladorNivel_1,
 						d_acumuladorNivel_2, numVolxNivel0, numVolyNivel0, d_deltaTVolumenesNivel, borde_sup, borde_inf,
-						borde_izq, borde_der, Hmin, tam_spongeSup, tam_spongeInf, tam_spongeIzq, tam_spongeDer, sea_level,
-						&tiempoActSubmalla, CFL, deltaTNivel, mf0, vmax, epsilon_h, hpos, cvis, L, H, tam_datosVolDouble2Nivel,
-						blockGridVer1Nivel, blockGridVer2Nivel, blockGridHor1Nivel, blockGridHor2Nivel, threadBlockAri,
-						blockGridEstNivel, threadBlockEst);
+						borde_izq, borde_der, es_periodica, Hmin, tam_spongeSup, tam_spongeInf, tam_spongeIzq, tam_spongeDer,
+						sea_level, &tiempoActSubmalla, CFL, deltaTNivel, mf0, vmax, epsilon_h, hpos, cvis, L, H,
+						tam_datosVolDouble2Nivel, blockGridVer1Nivel, blockGridVer2Nivel, blockGridHor1Nivel,
+						blockGridHor2Nivel, threadBlockAri, blockGridEstNivel, threadBlockEst);
 
 		if (! saltar_deformacion) {
 			truncarDeltaTNivel0ParaSigDeformacion(okada_flag, numFaults, fallaOkada, tiempoActSubmalla, defTime,
@@ -446,8 +449,8 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int c
 		iter++;
 	}
 	cudaDeviceSynchronize();
-	sdkStopTimer(&timer);
-	*tiempo = sdkGetTimerValue(&timer)*0.001;
+	tiempo_fin = high_resolution_clock::now();
+	*tiempo = duration_cast<microseconds>(tiempo_fin - tiempo_ini).count()*1e-6;
 
 	// INICIO NETCDF
 	if (tiempoGuardarNetCDF >= 0.0) {
@@ -489,7 +492,6 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int c
 	}
 	// FIN NETCDF
 
-	sdkDeleteTimer(&timer);
 	liberarMemoria(numNiveles, d_datosVolumenesNivel_1, d_datosVolumenesNivel_2, d_datosNivel, d_eta1MaximaNivel,
 		d_tiemposLlegadaNivel, d_eta1InicialNivel, d_deltaTVolumenesNivel, d_acumuladorNivel_1, d_acumuladorNivel_2,
 		leer_fichero_puntos, d_posicionesVolumenesGuardado, d_datosVolumenesGuardado_1, d_datosVolumenesGuardado_2, d_vec);
