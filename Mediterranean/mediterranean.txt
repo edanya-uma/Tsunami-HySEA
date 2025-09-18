@@ -8,9 +8,9 @@ Mediterranean.grd      # Bathymetry file name
 mediterranean          # NetCDF file prefix for level 0
 1                      # Number of levels
 1                      # Upper border condition (1: open, -1: wall)
-1                      # Lower border condition
-1                      # Left border condition
-1                      # Right border condition
+1                      # Lower border condition (1: open, -1: wall)
+1                      # Left border condition  (1: open, -1: wall, 2: periodic)
+1                      # Right border condition (1: open, -1: wall, 2: periodic)
 14401.0                # Simulation time (sec)
 3600                   # Saving time of NetCDF files (sec) (-1: do not save)
 0                      # Read points from file (0: no, 1: yes). Used for time series

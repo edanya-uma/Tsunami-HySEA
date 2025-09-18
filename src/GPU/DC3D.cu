@@ -1,21 +1,23 @@
 #ifndef DC3D_H
 #define DC3D_H
 
+#include <cmath>
+
 /* Common Block Declarations */
 
-typedef struct {
+using Tipo_1 = struct {
 	double dummy[5], sd, cd, sdsd, cdcd, sdcd, s2d, c2d;
-} Tipo_1;
+};
 
-typedef struct {
+using Tipo_2 = struct {
 	double alp1, alp2, alp3, alp4, alp5, sd, cd, sdsd, cdcd, sdcd, 
 		s2d, c2d;
-} Tipo_2;
+};
 
-typedef struct {
+using Tipo_c2_1 = struct {
     double xi2, et2, q2, r__, r2, r3, r5, y, d__, tt, alx, ale, x11, y11, 
 	    x32, y32, ey, ez, fy, fz, gy, gz, hy, hz;
-} Tipo_c2_1;
+};
 
 __device__ int dccon0_(double *alpha, double *dip, Tipo_2 *c0_2)
 {

@@ -1,8 +1,24 @@
-#ifndef _ARISTA_KERNEL_H_
-#define _ARISTA_KERNEL_H_
+#ifndef ARISTA_KERNEL_H
+#define ARISTA_KERNEL_H
 
-#include <stdio.h>
-#include "Matriz.cu"
+#include "Constantes.hxx"
+
+__device__ int obtenerPosXVer(int ppv, bool es_periodica, int num_volx)
+{
+	int posx;
+
+	if ((ppv >= 0) && (ppv < num_volx)) {
+		posx = ppv;
+	}
+	else if (ppv < 0) {
+		posx = (es_periodica ? num_volx+ppv : 0);
+	}
+	else if (ppv >= num_volx) {
+		posx = (es_periodica ? ppv-num_volx : num_volx-1);
+	}
+
+	return posx;
+}
 
 __device__ double limitador(double p0m, double p0, double p1, double p1p, double S)
 {
@@ -107,7 +123,8 @@ __device__ void procesarAristaVer_2s_1step(double h0, double h1, double q0x, dou
 	positividad(h0, h1, delta_T, area0, area1, Fmenos2s);
 	*Fmas2s = -(*Fmenos2s);
 
-	d_acumulador_1[pos_vol0].x -= *Fmenos2s;
+	if (pos_vol0 != -1)
+		d_acumulador_1[pos_vol0].x -= *Fmenos2s;
 	if (pos_vol1 != -1)
 		d_acumulador_1[pos_vol1].x += *Fmenos2s;
 }
@@ -194,15 +211,16 @@ __device__ void procesarAristaVer_2s_waf_1step(double h0m, double h0, double h1,
 		positividad(h0, h1, delta_T, area0, area1, Fmenos2s);
 		*Fmas2s = -(*Fmenos2s);
 
-		d_acumulador_1[pos_vol0].x -= *Fmenos2s;
+		if (pos_vol0 != -1)
+			d_acumulador_1[pos_vol0].x -= *Fmenos2s;
 		if (pos_vol1 != -1)
 			d_acumulador_1[pos_vol1].x += *Fmenos2s;
 	}
 }
 
-__device__ void procesarAristaVer_2s_2step(TVec3 *W0, TVec3 *W1, double H0, double H1, double2 *d_acumulador_1,
+__device__ void procesarAristaVer_2s_2step(double3 *W0, double3 *W1, double H0, double H1, double2 *d_acumulador_1,
 				double2 *d_acumulador_2, int pos_vol0, int pos_vol1, double CFL, double cosPhi0, double longitud,
-				double delta_T, double area0, double area1, double cvis, TVec2 *Fmas2s, TVec2 *Fmenos2s)
+				double delta_T, double area0, double area1, double cvis, double2 *Fmas2s, double2 *Fmenos2s)
 {
 	double2 acum;
 	double hij, Hm, u0n, u1n;
@@ -245,12 +263,13 @@ __device__ void procesarAristaVer_2s_2step(TVec3 *W0, TVec3 *W1, double H0, doub
 	Fmas2s->x += DES;
 
 	a0 = ilcos*max_autovalor;
-	d_acumulador_1[pos_vol0].y += a0;
-	acum = d_acumulador_2[pos_vol0];
-	acum.x -= Fmenos2s->x;
-	acum.y -= Fmenos2s->y;
-	d_acumulador_2[pos_vol0] = acum;
-
+	if (pos_vol0 != -1) {
+		d_acumulador_1[pos_vol0].y += a0;
+		acum = d_acumulador_2[pos_vol0];
+		acum.x -= Fmenos2s->x;
+		acum.y -= Fmenos2s->y;
+		d_acumulador_2[pos_vol0] = acum;
+	}
 	if (pos_vol1 != -1) {
 		d_acumulador_1[pos_vol1].y += a0;
 		acum = d_acumulador_2[pos_vol1];
@@ -260,16 +279,16 @@ __device__ void procesarAristaVer_2s_2step(TVec3 *W0, TVec3 *W1, double H0, doub
 	}
 }
 
-__device__ void procesarAristaVer_2s_waf_2step(TVec3 *W0m, TVec3 *W0, TVec3 *W1, TVec3 *W1p, double H0m,
+__device__ void procesarAristaVer_2s_waf_2step(double3 *W0m, double3 *W0, double3 *W1, double3 *W1p, double H0m,
 				double H0, double H1, double H1p, double normal, double longitud, double area0, double area1,
 				double delta_T, double2 *d_acumulador_1, double2 *d_acumulador_2, int pos_vol0, int pos_vol1,
-				double CFL, double epsilon_h, double cosPhi0, double cvis, double hpos, TVec2 *Fmas2,
-				TVec2 *Fmenos2, bool alfa_cero)
+				double CFL, double epsilon_h, double cosPhi0, double cvis, double hpos, double2 *Fmas2,
+				double2 *Fmenos2, bool alfa_cero)
 {
-	TVec2 DES;
-	TVec3 Fmas3, Fmenos3;
-	TVec3 Fmas2s, Fmenos2s;
-	TVec2 fl0, fl1;
+	double2 DES;
+	double3 Fmas3, Fmenos3;
+	double3 Fmas2s, Fmenos2s;
+	double2 fl0, fl1;
 	double2 acum;
 	double hij, uijn, uijt,h0,h1;
 	double a0, a1, c0;
@@ -278,7 +297,7 @@ __device__ void procesarAristaVer_2s_waf_2step(TVec3 *W0m, TVec3 *W0, TVec3 *W1,
 	double u0n, u1n;
 	double q0mt, q0t, q1t, q1pt;
 	double sqrt_h0, sqrt_h1, Hm, deta, dq;
-	TVec2 W0_rot, W1_rot;
+	double2 W0_rot, W1_rot;
 	double eta0m, eta0, eta1, eta1p;
 	double h0m, h1p;
 	double p0m, p0, p1, p1p;
@@ -427,12 +446,13 @@ __device__ void procesarAristaVer_2s_waf_2step(TVec3 *W0m, TVec3 *W0, TVec3 *W1,
 			max_autovalor += epsilon_h;
 
 		a0 = ilcos*max_autovalor;
-		d_acumulador_1[pos_vol0].y += a0;
-		acum = d_acumulador_2[pos_vol0];
-		acum.x -= Fmenos2->x;
-		acum.y -= Fmenos2->y;
-		d_acumulador_2[pos_vol0] = acum;
-
+		if (pos_vol0 != -1) {
+			d_acumulador_1[pos_vol0].y += a0;
+			acum = d_acumulador_2[pos_vol0];
+			acum.x -= Fmenos2->x;
+			acum.y -= Fmenos2->y;
+			d_acumulador_2[pos_vol0] = acum;
+		}
 		if (pos_vol1 != -1) {
 			d_acumulador_1[pos_vol1].y += a0;
 			acum = d_acumulador_2[pos_vol1];
@@ -445,7 +465,7 @@ __device__ void procesarAristaVer_2s_waf_2step(TVec3 *W0m, TVec3 *W0, TVec3 *W1,
 
 __global__ void procesarAristasVerNivel0Paso1GPU(double2 *d_datosVolumenes_1, double2 *d_datosVolumenes_2,
 				double2 *d_datosVolumenes_3, double *d_altoVolumenes, int num_volx, int num_voly,
-				double borde1, double borde2, double delta_T, double2 *d_acumulador_1,
+				double borde1, double borde2, bool es_periodica, double delta_T, double2 *d_acumulador_1,
 				double CFL, double epsilon_h, double hpos, double cvis, int tipo)
 {
 	double2 datos_vol;
@@ -477,13 +497,13 @@ __global__ void procesarAristasVerNivel0Paso1GPU(double2 *d_datosVolumenes_1, do
 		front = 0;
 
 		ppv = pos_x_hebra-1;
-		ppv0 = ppv*(ppv >= 0);
+		ppv0 = obtenerPosXVer(ppv, es_periodica, num_volx);
 		pos = pos_y_hebra*num_volx + ppv0;
 		datos_vol = d_datosVolumenes_1[pos];
 		h0 = datos_vol.x;
 		H0 = datos_vol.y;
 		q0x = d_datosVolumenes_2[pos].x;
-		if (ppv < 0) {
+		if ((ppv < 0) && (! es_periodica)) {
 			q0x *= borde1;
 			pos_vol0 = pos_y_hebra*num_volx;
 			pos_vol1 = -1;
@@ -491,31 +511,35 @@ __global__ void procesarAristasVerNivel0Paso1GPU(double2 *d_datosVolumenes_1, do
 			front = 1;
 		}
 		ppv = pos_x_hebra;
-		ppv0 = ppv*(ppv < num_volx) + (num_volx-1)*(ppv >= num_volx);
+		ppv0 = obtenerPosXVer(ppv, es_periodica, num_volx);
 		pos = pos_y_hebra*num_volx + ppv0;
 		datos_vol = d_datosVolumenes_1[pos];
 		h1 = datos_vol.x;
 		H1 = datos_vol.y;
 		q1x = d_datosVolumenes_2[pos].x;
-		if (ppv >= num_volx) {
+		if ((ppv >= num_volx) && (! es_periodica)) {
 			q1x *= borde2;
 			pos_vol0 = (pos_y_hebra+1)*num_volx - 1;
 			pos_vol1 = -1; 
 		}
 
 		ppv = pos_x_hebra-2;
-		ppv0 = ppv*(ppv >= 0);
+		ppv0 = obtenerPosXVer(ppv, es_periodica, num_volx);
 		pos = pos_y_hebra*num_volx + ppv0;
 		datos_vol = d_datosVolumenes_1[pos];
 		h0m = datos_vol.x;
 		H0m = datos_vol.y;
 
 		ppv = pos_x_hebra+1;
-		ppv0 = ppv*(ppv < num_volx) + (num_volx-1)*(ppv >= num_volx);
+		ppv0 = obtenerPosXVer(ppv, es_periodica, num_volx);
 		pos = pos_y_hebra*num_volx + ppv0;
 		datos_vol = d_datosVolumenes_1[pos];
 		h1p = datos_vol.x;
 		H1p = datos_vol.y;
+
+		// Si los bordes son periódicos impedimos que escriba fuera de la malla
+		pos_vol0 = ((es_periodica && (pos_x_hebra == 0)) ? -1 : pos_vol0);
+		pos_vol1 = ((es_periodica && (pos_x_hebra == num_volx)) ? -1 : pos_vol1);
 
 		alfa_cero = ( ((pos_x_hebra < 2) || (pos_x_hebra > num_volx-2)) ? true : false);
 		if ((h0 > hpos) && (h1 > hpos) && (h0m > hpos) && (h1p > hpos) && (! alfa_cero)) {
@@ -540,17 +564,17 @@ __global__ void procesarAristasVerNivel0Paso1GPU(double2 *d_datosVolumenes_1, do
 
 __global__ void procesarAristasVerNivel0Paso2GPU(double2 *d_datosVolumenes_1, double2 *d_datosVolumenes_2,
 				double2 *d_datosVolumenes_3, double *d_altoVolumenes, int num_volx, int num_voly, double borde1,
-				double borde2, double delta_T, double2 *d_acumulador_1, double2 *d_acumulador_2,
+				double borde2, bool es_periodica, double delta_T, double2 *d_acumulador_1, double2 *d_acumulador_2,
 				double CFL, double epsilon_h, double hpos, double cvis, int tipo)
 {
 	double2 datos_vol;
 	double normal;
-	TVec2 Fmas2, Fmenos2;
+	double2 Fmas2, Fmenos2;
 	double area0, area1, longitud;
 	int pos_x_hebra, pos_y_hebra;
 	int pos, pos_vol0, pos_vol1;
 	int ppv, ppv0, front;
-	TVec3 W0, W1, W0m, W1p, vaux;
+	double3 W0, W1, W0m, W1p, vaux;
 	double H0m, H0, H1, H1p, aux;
 	double cosPhi0;
 	bool alfa_cero;
@@ -571,7 +595,7 @@ __global__ void procesarAristasVerNivel0Paso2GPU(double2 *d_datosVolumenes_1, do
 		normal = 1.0;
 
 		ppv = pos_x_hebra-1;
-		ppv0 = ppv*(ppv >= 0);
+		ppv0 = obtenerPosXVer(ppv, es_periodica, num_volx);
 		pos = pos_y_hebra*num_volx + ppv0;
 		datos_vol = d_datosVolumenes_1[pos];
 		W0.x = datos_vol.x;
@@ -579,7 +603,7 @@ __global__ void procesarAristasVerNivel0Paso2GPU(double2 *d_datosVolumenes_1, do
 		datos_vol = d_datosVolumenes_2[pos];
 		W0.y = datos_vol.x;
 		W0.z = datos_vol.y;
-		if (ppv < 0) {
+		if ((ppv < 0) && (! es_periodica)) {
 			W0.y *= borde1;
 			pos_vol0 = pos_y_hebra*num_volx;
 			pos_vol1 = -1;
@@ -587,7 +611,7 @@ __global__ void procesarAristasVerNivel0Paso2GPU(double2 *d_datosVolumenes_1, do
 			normal = -1.0;
 		}
 		ppv = pos_x_hebra;
-		ppv0 = ppv*(ppv < num_volx) + (num_volx-1)*(ppv >= num_volx);
+		ppv0 = obtenerPosXVer(ppv, es_periodica, num_volx);
 		pos = pos_y_hebra*num_volx + ppv0;
 		datos_vol = d_datosVolumenes_1[pos];
 		W1.x = datos_vol.x;
@@ -595,14 +619,14 @@ __global__ void procesarAristasVerNivel0Paso2GPU(double2 *d_datosVolumenes_1, do
 		datos_vol = d_datosVolumenes_2[pos];
 		W1.y = datos_vol.x;
 		W1.z = datos_vol.y;
-		if (ppv >= num_volx) {
+		if ((ppv >= num_volx) && (! es_periodica)) {
 			W1.y *= borde2;
 			pos_vol0 = (pos_y_hebra+1)*num_volx - 1;
 			pos_vol1 = -1; 
 		}
 
 		ppv = pos_x_hebra-2;
-		ppv0 = ppv*(ppv >= 0);
+		ppv0 = obtenerPosXVer(ppv, es_periodica, num_volx);
 		pos = pos_y_hebra*num_volx + ppv0;
 		datos_vol = d_datosVolumenes_1[pos];
 		W0m.x = datos_vol.x;
@@ -612,7 +636,7 @@ __global__ void procesarAristasVerNivel0Paso2GPU(double2 *d_datosVolumenes_1, do
 		W0m.z = datos_vol.y;
 
 		ppv = pos_x_hebra+1;
-		ppv0 = ppv*(ppv < num_volx) + (num_volx-1)*(ppv >= num_volx);
+		ppv0 = obtenerPosXVer(ppv, es_periodica, num_volx);
 		pos = pos_y_hebra*num_volx + ppv0;
 		datos_vol = d_datosVolumenes_1[pos];
 		W1p.x = datos_vol.x;
@@ -621,6 +645,10 @@ __global__ void procesarAristasVerNivel0Paso2GPU(double2 *d_datosVolumenes_1, do
 		W1p.y = datos_vol.x;
 		W1p.z = datos_vol.y;
 
+		// Si los bordes son periódicos impedimos que escriba fuera de la malla
+		pos_vol0 = ((es_periodica && (pos_x_hebra == 0)) ? -1 : pos_vol0);
+		pos_vol1 = ((es_periodica && (pos_x_hebra == num_volx)) ? -1 : pos_vol1);
+
 		alfa_cero = ( ((pos_x_hebra < 2) || (pos_x_hebra > num_volx-2)) ? true : false);
 		if ((W0.x > hpos) && (W1.x > hpos) && (W0m.x > hpos) && (W1p.x > hpos) && (! alfa_cero)) {
             procesarAristaVer_2s_2step(&W0, &W1, H0, H1, d_acumulador_1, d_acumulador_2, pos_vol0,
@@ -628,10 +656,10 @@ __global__ void procesarAristasVerNivel0Paso2GPU(double2 *d_datosVolumenes_1, do
         }
         else {
             if (front == 1) {
-                v_copy3(&W0, &vaux);  v_copy3(&W1, &W0);  v_copy3(&vaux, &W1);
-                v_copy3(&W0m, &vaux);  v_copy3(&W1p, &W0m);  v_copy3(&vaux, &W1p);
-                aux = H0m; H0m = H1p; H1p = aux;
-                aux = H0;  H0 = H1;   H1 = aux;
+                vaux = W0;  W0 = W1;   W1 = vaux;
+                vaux = W0m; W0m = W1p; W1p = vaux;
+                aux = H0;   H0 = H1;   H1 = aux;
+                aux = H0m;  H0m = H1p; H1p = aux;
             }
 
             procesarAristaVer_2s_waf_2step(&W0m, &W0, &W1, &W1p, H0m, H0, H1, H1p, normal, longitud,
@@ -749,10 +777,10 @@ __device__ void procesarAristaHor_2s_waf_1step(double h0m, double h0, double h1,
 	}
 }
 
-__device__ void procesarAristaHor_2s_2step(TVec3 *W0, TVec3 *W1, double H0, double H1, double longitud,
+__device__ void procesarAristaHor_2s_2step(double3 *W0, double3 *W1, double H0, double H1, double longitud,
 				double area0, double area1, double delta_T, double2 *d_acumulador_1, double2 *d_acumulador_2,
 				int pos_vol0, int pos_vol1, double CFL, double epsilon_h, double cosPhi0, double cosPhi1,
-				double cvis, double hpos, TVec2 *Fmas2s, TVec2 *Fmenos2s)
+				double cvis, double hpos, double2 *Fmas2s, double2 *Fmenos2s)
 {
 	double2 acum;
 	double a0;
@@ -805,7 +833,6 @@ __device__ void procesarAristaHor_2s_2step(TVec3 *W0, TVec3 *W1, double H0, doub
 		acum.y -= Fmenos2s->y;
 		d_acumulador_2[pos_vol0] = acum;
 	}
-
 	if (pos_vol1 != -1) {
 		d_acumulador_1[pos_vol1].y += a0;
 		acum = d_acumulador_2[pos_vol1];
@@ -815,16 +842,16 @@ __device__ void procesarAristaHor_2s_2step(TVec3 *W0, TVec3 *W1, double H0, doub
 	}
 }
 
-__device__ void procesarAristaHor_2s_waf_2step(TVec3 *W0m, TVec3 *W0, TVec3 *W1, TVec3 *W1p, double H0m,
+__device__ void procesarAristaHor_2s_waf_2step(double3 *W0m, double3 *W0, double3 *W1, double3 *W1p, double H0m,
 				double H0, double H1, double H1p, double normal, double longitud, double area0, double area1,
 				double delta_T, double2 *d_acumulador_1, double2 *d_acumulador_2, int pos_vol0, int pos_vol1,
 				double CFL, double epsilon_h, double cosPhi0, double cosPhi1, double cvis, double hpos,
-				TVec2 *Fmas2, TVec2 *Fmenos2, bool alfa_cero)
+				double2 *Fmas2, double2 *Fmenos2, bool alfa_cero)
 {
-	TVec2 DES;
-	TVec3 Fmas3, Fmenos3;
-	TVec3 Fmas2s, Fmenos2s;
-	TVec2 fl0, fl1;
+	double2 DES;
+	double3 Fmas3, Fmenos3;
+	double3 Fmas2s, Fmenos2s;
+	double2 fl0, fl1;
 	double2 acum;
 	double hij, uijn, uijt;
 	double a0, a1, c0;
@@ -834,7 +861,7 @@ __device__ void procesarAristaHor_2s_waf_2step(TVec3 *W0m, TVec3 *W0, TVec3 *W1,
 	double q0mt, q0t, q1t, q1pt;
 	double h0m, h0, h1, h1p;
 	double sqrt_h0, sqrt_h1, deta, dq, Hm;
-	TVec2 W0_rot, W1_rot;
+	double2 W0_rot, W1_rot;
 	double p0m, p0, p1, p1p;
 	double alr, blr;
 	double sgL, sgR;
@@ -988,7 +1015,6 @@ __device__ void procesarAristaHor_2s_waf_2step(TVec3 *W0m, TVec3 *W0, TVec3 *W1,
 			acum.y -= Fmenos2->y;
 			d_acumulador_2[pos_vol0] = acum;
 		}
-
 		if (pos_vol1 != -1) {
 			d_acumulador_1[pos_vol1].y += a0;
 			acum = d_acumulador_2[pos_vol1];
@@ -1105,13 +1131,13 @@ __global__ void procesarAristasHorNivel0Paso2GPU(double2 *d_datosVolumenes_1, do
 {
 	double2 datos_vol, datos_vol2;
 	double normal;
-	TVec2 Fmas2, Fmenos2;
+	double2 Fmas2, Fmenos2;
 	double area0, area1, longitud;
 	double cosPhi0, cosPhi1;
 	int pos_x_hebra, pos_y_hebra;
 	int pos, pos_vol0, pos_vol1;
 	int ppv, ppv0, front;
-	TVec3 W0m, W0, W1, W1p, vaux;
+	double3 W0m, W0, W1, W1p, vaux;
 	double H0m, H0, H1, H1p, Haux;
 	bool alfa_cero;
 
@@ -1191,10 +1217,10 @@ __global__ void procesarAristasHorNivel0Paso2GPU(double2 *d_datosVolumenes_1, do
 		}
 		else {
 			if (front == 1) {
-				v_copy3(&W0m, &vaux); v_copy3(&W1p, &W0m); v_copy3(&vaux, &W1p);
-				v_copy3(&W0, &vaux);  v_copy3(&W1, &W0);   v_copy3(&vaux, &W1);
-				Haux = H0m; H0m = H1p; H1p = Haux;
+                vaux = W0;  W0 = W1;   W1 = vaux;
+                vaux = W0m; W0m = W1p; W1p = vaux;
 				Haux = H0;  H0 = H1;   H1 = Haux;
+				Haux = H0m; H0m = H1p; H1p = Haux;
 				Haux = area0; area0 = area1; area1 = Haux;
 				Haux = cosPhi0; cosPhi0 = cosPhi1; cosPhi1 = Haux;
 			}
@@ -1208,14 +1234,14 @@ __global__ void procesarAristasHorNivel0Paso2GPU(double2 *d_datosVolumenes_1, do
 
 // DELTA_T INICIAL
 
-__device__ void procesarAristaDeltaTInicial(TVec3 *W0, TVec3 *W1, double H0, double H1, double normal1_x, double normal1_y,
+__device__ void procesarAristaDeltaTInicial(double3 *W0, double3 *W1, double H0, double H1, double normal1_x, double normal1_y,
 			double longitud, double2 *d_acumulador_2, int pos_vol0, int pos_vol1, double epsilon_h, double cosPhi0)
 {
 	double h1ij, u1ij_n;
 	double max_autovalor;
 	double u0n, u1n, maxheps;
 	double h0, h1, sqrt_h0, sqrt_h1;
-	TVec2 W0_rot, W1_rot;
+	double2 W0_rot, W1_rot;
 	double2 acum0, acum1;
 
 	W0_rot.x = W0->x;
@@ -1241,10 +1267,11 @@ __device__ void procesarAristaDeltaTInicial(TVec3 *W0, TVec3 *W1, double H0, dou
 		max_autovalor += epsilon_h;
 
 	h0 = longitud*max_autovalor/cosPhi0;
-	acum0 = d_acumulador_2[pos_vol0];
-	acum0.y += h0;
-	d_acumulador_2[pos_vol0] = acum0;
-
+	if (pos_vol0 >= 0) {
+		acum0 = d_acumulador_2[pos_vol0];
+		acum0.y += h0;
+		d_acumulador_2[pos_vol0] = acum0;
+	}
 	if (pos_vol1 != -1) {
 		acum1 = d_acumulador_2[pos_vol1];
 		acum1.y += h0;
@@ -1254,69 +1281,78 @@ __device__ void procesarAristaDeltaTInicial(TVec3 *W0, TVec3 *W1, double H0, dou
 
 __global__ void procesarAristasVerDeltaTInicialNivel0GPU(double2 *d_datosVolumenesNivel0_1, double2 *d_datosVolumenesNivel0_2,
 				double2 *d_datosVolumenes_3, int numVolxNivel0, int numVolyNivel0, double borde1, double borde2,
-				double *d_altoVolumenesNivel0, double2 *d_acumulador_1, double epsilon_h, int tipo)
+				bool es_periodica, double *d_altoVolumenesNivel0, double2 *d_acumulador_1, double epsilon_h, int tipo)
 {
-	double2 datos_vol0, datos_vol1;
+	double2 datos_vol;
 	double longitud, cosPhi0;
+	double normal, aux;
 	double H0, H1;
 	int pos_x_hebra, pos_y_hebra;
-	int pos, pos_vol0;
-	TVec3 W0, W1;
+	int pos, pos_vol0, pos_vol1;
+	int ppv, ppv0;
+	int front;
+	double3 W0, W1;
 
 	pos_x_hebra = 2*(blockIdx.x*NUM_HEBRASX_ARI + threadIdx.x);
 	pos_y_hebra = blockIdx.y*NUM_HEBRASY_ARI + threadIdx.y;
 	if (tipo == 2) pos_x_hebra++;
 
 	if ((pos_x_hebra <= numVolxNivel0) && (pos_y_hebra < numVolyNivel0)) {
+		pos_vol0 = pos_y_hebra*numVolxNivel0 + pos_x_hebra-1;
+		pos_vol1 = pos_vol0 + 1;
 		longitud = d_altoVolumenesNivel0[pos_y_hebra];
 		cosPhi0 = d_datosVolumenes_3[pos_y_hebra].y;
-		if (pos_x_hebra == 0) {
-			pos = pos_y_hebra*numVolxNivel0 + pos_x_hebra;
-			datos_vol0 = d_datosVolumenesNivel0_1[pos];
-			W0.x = datos_vol0.x;
-			H0 = datos_vol0.y;
-			datos_vol0 = d_datosVolumenesNivel0_2[pos];
-			W0.y = datos_vol0.x;
-			W0.z = datos_vol0.y;
-			W1.x = W0.x;
-			W1.y = W0.y*borde1;
-			W1.z = W0.z;
+		normal = 1.0;
+		front = 0;
 
+		ppv = pos_x_hebra-1;
+		ppv0 = obtenerPosXVer(ppv, es_periodica, numVolxNivel0);
+		pos = pos_y_hebra*numVolxNivel0 + ppv0;
+		datos_vol = d_datosVolumenesNivel0_1[pos];
+		W0.x = datos_vol.x;
+		H0 = datos_vol.y;
+		datos_vol = d_datosVolumenesNivel0_2[pos];
+		W0.y = datos_vol.x;
+		W0.z = datos_vol.y;
+		if ((ppv < 0) && (! es_periodica)) {
+			// Condición de contorno
+			W0.y *= borde1;
 			pos_vol0 = pos_y_hebra*numVolxNivel0;
-			procesarAristaDeltaTInicial(&W0, &W1, H0, H0, -1.0, 0.0, longitud,
-				d_acumulador_1, pos_vol0, -1, epsilon_h, cosPhi0);
+			pos_vol1 = -1;
+			normal = -1.0;
+			front = 1;
 		}
-		else {
-			pos = pos_y_hebra*numVolxNivel0 + pos_x_hebra-1;
-			datos_vol0 = d_datosVolumenesNivel0_1[pos];
-			W0.x = datos_vol0.x;
-			H0 = datos_vol0.y;
-			datos_vol0 = d_datosVolumenesNivel0_2[pos];
-			W0.y = datos_vol0.x;
-			W0.z = datos_vol0.y;
-			if (pos_x_hebra == numVolxNivel0) {
-				W1.x = W0.x;
-				W1.y = W0.y*borde2;
-				W1.z = W0.z;
-
-				pos_vol0 = (pos_y_hebra+1)*numVolxNivel0 - 1;
-				procesarAristaDeltaTInicial(&W0, &W1, H0, H0, 1.0, 0.0, longitud,
-					d_acumulador_1, pos_vol0, -1, epsilon_h, cosPhi0);
-			}
-			else {
-				pos = pos_y_hebra*numVolxNivel0 + pos_x_hebra;
-				datos_vol1 = d_datosVolumenesNivel0_1[pos];
-				W1.x = datos_vol1.x;
-				H1 = datos_vol1.y;
-				datos_vol1 = d_datosVolumenesNivel0_2[pos];
-				W1.y = datos_vol1.x;
-				W1.z = datos_vol1.y;
-
-				pos_vol0 = pos_y_hebra*numVolxNivel0 + pos_x_hebra - 1;
-				procesarAristaDeltaTInicial(&W0, &W1, H0, H1, 1.0, 0.0, longitud,
-					d_acumulador_1, pos_vol0, pos_vol0+1, epsilon_h, cosPhi0);
-			}
+		ppv = pos_x_hebra;
+		ppv0 = obtenerPosXVer(ppv, es_periodica, numVolxNivel0);
+		pos = pos_y_hebra*numVolxNivel0 + ppv0;
+		datos_vol = d_datosVolumenesNivel0_1[pos];
+		W1.x = datos_vol.x;
+		H1 = datos_vol.y;
+		datos_vol = d_datosVolumenesNivel0_2[pos];
+		W1.y = datos_vol.x;
+		W1.z = datos_vol.y;
+		if ((ppv >= numVolxNivel0) && (! es_periodica)) {
+			// Condición de contorno
+			W1.y *= borde2;
+			pos_vol0 = (pos_y_hebra+1)*numVolxNivel0 - 1;
+			pos_vol1 = -1; 
 		}
+
+		// Si los bordes son periódicos impedimos que escriba fuera de la malla
+		pos_vol0 = ((es_periodica && (pos_x_hebra == 0)) ? -1 : pos_vol0);
+		pos_vol1 = ((es_periodica && (pos_x_hebra == numVolxNivel0)) ? -1 : pos_vol1);
+
+		if (front == 1) {
+			// Frontera izquierda.
+			// Intercambiamos W0 por W1
+			aux = H0;  H0 = H1;  H1 = aux;
+			aux = W0.x;  W0.x = W1.x;   W1.x = aux;
+			aux = W0.y;  W0.y = W1.y;   W1.y = aux;
+			aux = W0.z;  W0.z = W1.z;   W1.z = aux;
+		}
+
+		procesarAristaDeltaTInicial(&W0, &W1, H0, H1, normal, 0.0, longitud, d_acumulador_1,
+			pos_vol0, pos_vol1, epsilon_h, cosPhi0);
 	}
 }
 
@@ -1324,66 +1360,70 @@ __global__ void procesarAristasHorDeltaTInicialNivel0GPU(double2 *d_datosVolumen
 				int numVolxNivel0, int numVolyNivel0, double borde1, double borde2, double *d_anchoVolumenesNivel0,
 				double2 *d_acumulador_1, double epsilon_h, int tipo)
 {
-	double2 datos_vol0, datos_vol1;
-	double H0, H1;
-	double longitud;
+	double2 datos_vol;
+	double longitud, normal;
+	double H0, H1, aux;
 	int pos_x_hebra, pos_y_hebra;
 	int pos, pos_vol0, pos_vol1;
-	TVec3 W0, W1;
+	int ppv, ppv0;
+	int front;
+	double3 W0, W1;
 
 	pos_x_hebra = blockIdx.x*NUM_HEBRASX_ARI + threadIdx.x;
 	pos_y_hebra = 2*(blockIdx.y*NUM_HEBRASY_ARI + threadIdx.y);
 	if (tipo == 2) pos_y_hebra++;
 
 	if ((pos_x_hebra < numVolxNivel0) && (pos_y_hebra <= numVolyNivel0)) {
+		pos_vol0 = (pos_y_hebra-1)*numVolxNivel0 + pos_x_hebra;
+		pos_vol1 = pos_vol0 + numVolxNivel0;
 		longitud = d_anchoVolumenesNivel0[pos_y_hebra];
-		if (pos_y_hebra == 0) {
-			pos = pos_y_hebra*numVolxNivel0 + pos_x_hebra;
-			datos_vol0 = d_datosVolumenesNivel0_1[pos];
-			W0.x = datos_vol0.x;
-			H0 = datos_vol0.y;
-			datos_vol0 = d_datosVolumenesNivel0_2[pos];
-			W0.y = datos_vol0.x;
-			W0.z = datos_vol0.y;
-			W1.x = W0.x;
-			W1.y = W0.y;
-			W1.z = W0.z*borde1;
+		normal = 1.0;
+		front = 0;
 
-			procesarAristaDeltaTInicial(&W0, &W1, H0, H0, 0.0, -1.0, longitud,
-				d_acumulador_1, pos_x_hebra, -1, epsilon_h, 1.0);
+		ppv = pos_y_hebra-1;
+		ppv0 = ( (ppv < 0) ? 0 : ppv );
+		pos = ppv0*numVolxNivel0 + pos_x_hebra;
+		datos_vol = d_datosVolumenesNivel0_1[pos];
+		W0.x = datos_vol.x;
+		H0 = datos_vol.y;
+		datos_vol = d_datosVolumenesNivel0_2[pos];
+		W0.y = datos_vol.x;
+		W0.z = datos_vol.y;
+		if (ppv < 0) {
+			// Condición de contorno
+			W0.z *= borde1;
+			pos_vol0 = pos_x_hebra;
+			pos_vol1 = -1;
+			normal = -1.0;
+			front = 1;
 		}
-		else {
-			pos = (pos_y_hebra-1)*numVolxNivel0 + pos_x_hebra;
-			datos_vol0 = d_datosVolumenesNivel0_1[pos];
-			W0.x = datos_vol0.x;
-			H0 = datos_vol0.y;
-			datos_vol0 = d_datosVolumenesNivel0_2[pos];
-			W0.y = datos_vol0.x;
-			W0.z = datos_vol0.y;
-			if (pos_y_hebra == numVolyNivel0) {
-				W1.x = W0.x;
-				W1.y = W0.y;
-				W1.z = W0.z*borde2;
-
-				pos_vol0 = (pos_y_hebra-1)*numVolxNivel0 + pos_x_hebra;
-				procesarAristaDeltaTInicial(&W0, &W1, H0, H0, 0.0, 1.0, longitud,
-					d_acumulador_1, pos_vol0, -1, epsilon_h, 1.0);
-			}
-			else {
-				pos = pos_y_hebra*numVolxNivel0 + pos_x_hebra;
-				datos_vol1 = d_datosVolumenesNivel0_1[pos];
-				W1.x = datos_vol1.x;
-				H1 = datos_vol1.y;
-				datos_vol1 = d_datosVolumenesNivel0_2[pos];
-				W1.y = datos_vol1.x;
-				W1.z = datos_vol1.y;
-
-				pos_vol1 = pos_y_hebra*numVolxNivel0 + pos_x_hebra;
-				pos_vol0 = pos_vol1 - numVolxNivel0;
-				procesarAristaDeltaTInicial(&W0, &W1, H0, H1, 0.0, 1.0, longitud,
-					d_acumulador_1, pos_vol0, pos_vol1, epsilon_h, 1.0);
-			}
+		ppv = pos_y_hebra;
+		ppv0 = ( (ppv >= numVolyNivel0) ? numVolyNivel0-1 : ppv );
+		pos = ppv0*numVolxNivel0 + pos_x_hebra;
+		datos_vol = d_datosVolumenesNivel0_1[pos];
+		W1.x = datos_vol.x;
+		H1 = datos_vol.y;
+		datos_vol = d_datosVolumenesNivel0_2[pos];
+		W1.y = datos_vol.x;
+		W1.z = datos_vol.y;
+		if (ppv >= numVolyNivel0) {
+			// Condición de contorno
+			W1.z *= borde2;
+			pos_vol0 = (pos_y_hebra-1)*numVolxNivel0 + pos_x_hebra;
+			pos_vol1 = -1; 
 		}
+
+		if (front == 1) {
+			// Frontera superior.
+			// Intercambiamos W0 por W1
+			aux = H0;  H0 = H1;  H1 = aux;
+			aux = W0.x;  W0.x = W1.x;   W1.x = aux;
+			aux = W0.y;  W0.y = W1.y;   W1.y = aux;
+			aux = W0.z;  W0.z = W1.z;   W1.z = aux;
+		}
+
+		procesarAristaDeltaTInicial(&W0, &W1, H0, H1, 0.0, normal, longitud, d_acumulador_1,
+			pos_vol0, pos_vol1, epsilon_h, 1.0);
 	}
 }
 

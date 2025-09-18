@@ -1,7 +1,6 @@
-#ifndef _DEFORMACION_H_
-#define _DEFORMACION_H_
+#ifndef DEFORMACION_H
+#define DEFORMACION_H
 
-#include <stdio.h>
 #include "Constantes.hxx"
 #include "Reduccion_kernel.cu"
 #include "prtoxy.cu"
@@ -16,7 +15,7 @@ __global__ void convertirAMenosValorAbsolutoGPU(double *d_in, float *d_out, int 
 	int pos = blockIdx.x*NUM_HEBRAS_PUNTOS + threadIdx.x;
 
 	if (pos < n) {
-		d_out[pos] = (float) (-fabs(d_in[pos]));
+		d_out[pos] = static_cast<float>(-fabs(d_in[pos]));
 	}
 }
 
@@ -133,7 +132,7 @@ void aplicarOkada(double2 *d_datosVolumenes_1, double *d_eta1Inicial, int crop_f
 	if (crop_flag == CROP_RELATIVE) {
 		convertirAMenosValorAbsolutoGPU<<<blockGridVec, threadBlockVec>>>(d_deltaTVolumenes, d_vec, num_volumenes);
 		def_max = -obtenerMinimoReduccion<float>(d_vec, num_volumenes);
-		crop_value_final = crop_value*((double) def_max);
+		crop_value_final = crop_value*(static_cast<double>(def_max));
 		truncarDeformacionGPU<<<blockGridEstNivel, threadBlockEst>>>(d_deltaTVolumenes, num_volx, num_voly, crop_value_final);
 	}
 	else if (crop_flag == CROP_ABSOLUTE) {

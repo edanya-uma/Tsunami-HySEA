@@ -1,5 +1,5 @@
 /**********************************************************************
- Tsunami-HySEA numerical model open source v1.2.0
+ Tsunami-HySEA numerical model open source v1.3.0
  developed by the EDANYA Research Group, University of Malaga (Spain).
  https://www.uma.es/edanya
  https://edanya.uma.es/hysea/
@@ -8,15 +8,14 @@
  GNU General Public License, Version 2
 **********************************************************************/
 
-#include <cstring>
+#include <string>
 #include "Constantes.hxx"
 #include "Problema.cxx"
+#include "GPU/SoporteCUDA.cu"
 
-/*****************/
-/* Funciones GPU */
-/*****************/
+using namespace std;
+using namespace SoporteCUDA;
 
-extern "C" int comprobarSoporteCUDA();
 extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int crop_flag, double crop_value, double *LON_C,
 			double *LAT_C, double *DEPTH_C, double *FAULT_L, double *FAULT_W, double *STRIKE, double *DIP, double *RAKE,
 			double *SLIP, double *defTime, double2 *datosVolumenesNivel_1, double2 *datosVolumenesNivel_2, tipoDatosSubmalla datosNivel,
@@ -27,22 +26,18 @@ extern "C" int shallowWater(int numNiveles, int okada_flag, int numFaults, int c
 			double CFL, double mf0, double vmax, double epsilon_h, double hpos, double cvis, double dif_at, double L, double H,
 			double Q, double T, char *version, double *tiempo);
 
-/*********************/
-/* Fin funciones GPU */
-/*********************/
-
 int main(int argc, char *argv[])
 {
-	string version = "1.2.0";
+	string version = "1.3.0";
 	double2 *datosVolumenesNivel_1;
 	double2 *datosVolumenesNivel_2;
 	tipoDatosSubmalla datosNivel;
-	int *posicionesVolumenesGuardado = NULL;
-	double *lonPuntos = NULL;
-	double *latPuntos = NULL;
+	int *posicionesVolumenesGuardado = nullptr;
+	double *lonPuntos = nullptr;
+	double *latPuntos = nullptr;
 	int leer_fichero_puntos;
 	int numPuntosGuardar;
-	int soporteCUDA, err;
+	int soporte_CUDA, err;
 	int numVolxNivel0, numVolyNivel0;
 	int64_t numVolumenesNivel;
 	double borde_sup, borde_inf, borde_izq, borde_der;
@@ -78,7 +73,7 @@ int main(int argc, char *argv[])
 		cerr << "Use: " << endl;
 		cerr << argv[0] << " dataFile" << endl << endl;
 		cerr << "dataFile format:" << endl;
-		cerr << "  Bathymetry name" << endl;
+		cerr << "  Problem name" << endl;
 		cerr << "  Bathymetry file" << endl;
 		cerr << "  Initialization of states (" << SEA_SURFACE_FROM_FILE << ": Sea surface displacement from file," << endl;
 		cerr << "                            " << OKADA_STANDARD << ": Standard Okada)" << endl;
@@ -96,9 +91,9 @@ int main(int argc, char *argv[])
 		cerr << "  NetCDF file prefix" << endl;
 		cerr << "  Number of levels (should be 1)" << endl;
 		cerr << "  Upper border condition (1: open, -1: wall)" << endl;
-		cerr << "  Lower border condition" << endl;
-		cerr << "  Left border condition" << endl;
-		cerr << "  Right border condition" << endl;
+		cerr << "  Lower border condition (1: open, -1: wall)" << endl;
+		cerr << "  Left border condition (1: open, -1: wall, 2: periodic)" << endl;
+		cerr << "  Right border condition (1: open, -1: wall, 2: periodic)" << endl;
 		cerr << "  Simulation time (sec)" << endl;
 		cerr << "  Saving time of NetCDF files (sec) (-1: do not save)" << endl;
 		cerr << "  Read points from file (0: no, 1: yes)" << endl;
@@ -123,12 +118,12 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	soporteCUDA = comprobarSoporteCUDA();
-	if (soporteCUDA == 1) {
+	soporte_CUDA = comprobarSoporteCUDA();
+	if (soporte_CUDA == 1) {
 		cerr << "Error: There is no graphics card" << endl;
 		return EXIT_FAILURE;
 	}
-	else if (soporteCUDA == 2) {
+	else if (soporte_CUDA == 2) {
 		cerr << "Error: There is no graphics card supporting CUDA" << endl;
 		return EXIT_FAILURE;
 	}
@@ -148,24 +143,23 @@ int main(int argc, char *argv[])
 		epsilon_h, hpos, cvis, dif_at, L, H, Q, T);
 
 	cout << scientific;
-	err = shallowWater(numNiveles, okada_flag, numFaults, crop_flag, crop_value, LON_C, LAT_C, DEPTH_C, FAULT_L,
-			FAULT_W, STRIKE, DIP, RAKE, SLIP, defTime, datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel,
-			leer_fichero_puntos, numPuntosGuardar, posicionesVolumenesGuardado, lonPuntos, latPuntos, numVolxNivel0,
-			numVolyNivel0, numVolumenesNivel, Hmin, (char *) nombre_bati.c_str(), prefijo, borde_sup, borde_inf, borde_izq,
-			borde_der, tam_spongeSup, tam_spongeInf, tam_spongeIzq, tam_spongeDer, tiempo_tot, tiempoGuardarNetCDF,
-			tiempoGuardarSeries, CFL, mf0, vmax, epsilon_h, hpos, cvis, dif_at, L, H, Q, T, (char *) version.c_str(),
-			&tiempo_gpu);
+	err = shallowWater(numNiveles, okada_flag, numFaults, crop_flag, crop_value, LON_C, LAT_C, DEPTH_C, FAULT_L, FAULT_W,
+			STRIKE, DIP, RAKE, SLIP, defTime, datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel, leer_fichero_puntos,
+			numPuntosGuardar, posicionesVolumenesGuardado, lonPuntos, latPuntos, numVolxNivel0, numVolyNivel0, numVolumenesNivel,
+			Hmin, const_cast<char *>(nombre_bati.c_str()), prefijo, borde_sup, borde_inf, borde_izq, borde_der, tam_spongeSup,
+			tam_spongeInf, tam_spongeIzq, tam_spongeDer, tiempo_tot, tiempoGuardarNetCDF, tiempoGuardarSeries, CFL, mf0,
+			vmax, epsilon_h, hpos, cvis, dif_at, L, H, Q, T, const_cast<char *>(version.c_str()), &tiempo_gpu);
 	if (err > 0) {
 		if (err == 1)
 			cerr << "Error: Not enough GPU memory" << endl;
 		else if (err == 2)
 			cerr << "Error: Not enough CPU memory" << endl;
-		liberarMemoria(numNiveles, datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel,
+		liberarMemoria(datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel,
 			posicionesVolumenesGuardado, lonPuntos, latPuntos);
 		return EXIT_FAILURE;
 	}
 	cout << endl << "Runtime: " << tiempo_gpu << " sec" << endl;
-	liberarMemoria(numNiveles, datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel,
+	liberarMemoria(datosVolumenesNivel_1, datosVolumenesNivel_2, datosNivel,
 		posicionesVolumenesGuardado, lonPuntos, latPuntos);
 
 	return EXIT_SUCCESS;

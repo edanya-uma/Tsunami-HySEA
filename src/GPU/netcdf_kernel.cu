@@ -1,5 +1,5 @@
-#ifndef _NETCDF_KERNELS_H_
-#define _NETCDF_KERNELS_H_
+#ifndef NETCDF_KERNELS_H
+#define NETCDF_KERNELS_H
 
 #include "Constantes.hxx"
 
