@@ -1,0 +1,76 @@
+{   
+    "upload_type": "software",
+
+    "publication_date": "2025-09-26",
+
+    "title": "Tsunami-HySEA",
+
+    "creators": [
+    {
+        "name": "EDANYA Research Group",
+        "affiliation": "Universidad de Málaga",
+        "orcid": "",
+        "email": "t_hysea@uma.es"
+    },
+    {
+        "name": "Macías Sánchez, Jorge",
+        "affiliation": "Universidad de Málaga",
+        "orcid": "0000-0002-3010-8050",
+        "email": "jmacias@uma.es"
+    },
+    {
+        "name": "Sánchez Linares, Carlos",
+        "affiliation": "Universidad de Málaga",
+        "orcid": "0000-0002-5493-5982",
+        "email": "csl@uma.es"
+    },
+    {
+        "name": "de la Asunción, Marc",
+        "affiliation": "Universidad de Málaga",
+        "orcid": "0000-0003-3130-1335",
+        "email": "marcah@uma.es"
+    },
+    {
+        "name": "Castro Díaz, Manuel Jesús",
+        "affiliation": "Universidad de Málaga",
+        "orcid": "0000-0003-3164-7715",
+        "email": "mjcastro@uma.es"
+    },
+    {
+        "name": "González Vida, José Manuel",
+        "affiliation": "Universidad de Málaga",
+        "orcid": "0000-0003-4996-1972",
+        "email": "jgv@uma.es"
+    },
+    {
+        "name": "Morales de Luna, Tomás",
+        "affiliation": "Universidad de Málaga",
+        "orcid": "0000-0001-7162-9672",
+        "email": "tmorales@uma.es"
+    },
+    {
+        "name": "Ortega Acosta, Sergio",
+        "affiliation": "Universidad de Málaga",
+        "orcid": "0000-0001-7246-2085",
+        "email": "sergio.ortega@uma.es"
+    },
+    {
+        "name": "Escalante, Cipriano",
+        "affiliation": "Universidad de Málaga",
+        "orcid": "0000-0002-7602-5920",
+        "email": "escalante@uma.es"
+    }
+    ],
+
+    "description": "Tsunami-HySEA is a software package designed for simulating tsunami propagation and inundation using the shallow water equations. It employs advanced numerical methods to accurately model the behavior of tsunamis, making it a valuable tool for researchers and emergency planners in understanding and mitigating the impacts of these natural disasters. The software is developed by the EDANYA Research Group at the University of Málaga and is available under the GNU General Public License v2.0.",
+
+    "keywords": ["Tsunami", "Shallow Water Equations", "Numerical Simulation", "Hydrodynamics", "Inundation Modeling"],
+
+    "access_right": "open",
+
+    "license": "GNU General Public License v2.0",
+
+
+    "grants": [{"id":"823844"}]
+}
+ 
